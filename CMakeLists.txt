@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.2)
 project(racon)
-set(racon_version 1.4.7)
+set(racon_version 1.4.7~)
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
@@ -29,22 +29,24 @@ endif()
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
 set(racon_sources
-    src/main.cpp
     src/polisher.cpp
     src/overlap.cpp
-    src/sequence.cpp
     src/window.cpp)
 
 if(racon_enable_cuda)
     list(APPEND racon_sources src/cuda/cudapolisher.cpp src/cuda/cudabatch.cpp src/cuda/cudaaligner.cpp)
-    cuda_add_executable(racon ${racon_sources})
+    cuda_add_library(racon ${racon_sources})
     target_compile_definitions(racon PRIVATE CUDA_ENABLED)
 else()
-    add_executable(racon ${racon_sources})
+    add_library(racon ${racon_sources})
 endif()
 
 # Add version information to bibary.
 target_compile_definitions(racon PRIVATE RACON_VERSION="v${racon_version}")
+
+target_include_directories(racon PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
 
 if (NOT TARGET bioparser)
     add_subdirectory(vendor/bioparser EXCLUDE_FROM_ALL)
@@ -52,14 +54,14 @@ endif()
 if (NOT TARGET spoa)
     add_subdirectory(vendor/spoa EXCLUDE_FROM_ALL)
 endif()
-if (NOT TARGET thread_pool)
-    add_subdirectory(vendor/thread_pool EXCLUDE_FROM_ALL)
-endif()
 if (NOT TARGET edlib)
     add_subdirectory(vendor/edlib EXCLUDE_FROM_ALL)
 endif()
 if (NOT TARGET logger)
     add_subdirectory(vendor/logger EXCLUDE_FROM_ALL)
+endif()
+if (NOT TARGET ram)
+    add_subdirectory(vendor/ram EXCLUDE_FROM_ALL)
 endif()
 if (racon_enable_cuda)
     if (DEFINED CLARAGENOMICSANALYSIS_SDK_PATH)
@@ -90,7 +92,7 @@ if (racon_enable_cuda)
     endif()
 endif()
 
-target_link_libraries(racon bioparser spoa thread_pool edlib_static logger)
+target_link_libraries(racon bioparser spoa ram edlib_static logger)
 if (racon_enable_cuda)
     target_link_libraries(racon cudapoa cudaaligner)
 endif()
@@ -105,14 +107,9 @@ if (racon_build_tests)
     include_directories(${PROJECT_SOURCE_DIR}/src)
 
     set(racon_test_sources
-        test/racon_test.cpp
-        src/polisher.cpp
-        src/overlap.cpp
-        src/sequence.cpp
-        src/window.cpp)
+        test/racon_test.cpp)
 
     if (racon_enable_cuda)
-        list(APPEND racon_test_sources src/cuda/cudapolisher.cpp src/cuda/cudabatch.cpp src/cuda/cudaaligner.cpp)
         cuda_add_executable(racon_test ${racon_test_sources})
         target_compile_definitions(racon_test PRIVATE CUDA_ENABLED)
     else()
@@ -123,10 +120,7 @@ if (racon_build_tests)
         add_subdirectory(vendor/googletest/googletest EXCLUDE_FROM_ALL)
     endif()
 
-    target_link_libraries(racon_test bioparser spoa thread_pool edlib_static logger gtest_main)
-    if (racon_enable_cuda)
-        target_link_libraries(racon_test cudapoa cudaaligner)
-    endif()
+    target_link_libraries(racon_test racon gtest_main)
 endif()
 
 if (racon_build_wrapper)

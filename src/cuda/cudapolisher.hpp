@@ -8,7 +8,7 @@
 
 #include <mutex>
 
-#include "polisher.hpp"
+#include "racon/polisher.hpp"
 #include "cudabatch.hpp"
 #include "cudaaligner.hpp"
 #include "thread_pool/thread_pool.hpp"
@@ -20,27 +20,27 @@ class CUDAPolisher : public Polisher {
 public:
     ~CUDAPolisher();
 
-    virtual void polish(std::vector<std::unique_ptr<Sequence>>& dst,
+    virtual void polish(std::vector<std::unique_ptr<ram::Sequence>>& dst,
         bool drop_unpolished_sequences) override;
 
-    friend std::unique_ptr<Polisher> createPolisher(const std::string& sequences_path,
-        const std::string& overlaps_path, const std::string& target_path,
-        PolisherType type, uint32_t window_length, double quality_threshold,
-        double error_threshold, bool trim, int8_t match, int8_t mismatch, int8_t gap,
-        uint32_t num_threads, uint32_t cudapoa_batches, bool cuda_banded_alignment,
-        uint32_t cudaaligner_batches);
-
+    friend std::unique_ptr<Polisher> createPolisher(std::uint32_t q, std::uint32_t e,
+        std::uint32_t w, bool trim, std::int8_t m, std::int8_t n, std::int8_t g,
+        std::shared_ptr<thread_pool::ThreadPool> thread_pool,
+        std::uint32_t cudapoa_batches, bool cuda_banded_alignment,
+        std::uint32_t cudaaligner_batches);
 protected:
-    CUDAPolisher(std::unique_ptr<bioparser::Parser<Sequence>> sparser,
-        std::unique_ptr<bioparser::Parser<Overlap>> oparser,
-        std::unique_ptr<bioparser::Parser<Sequence>> tparser,
-        PolisherType type, uint32_t window_length, double quality_threshold,
-        double error_threshold, bool trim, int8_t match, int8_t mismatch, int8_t gap,
-        uint32_t num_threads, uint32_t cudapoa_batches, bool cuda_banded_alignment,
+    CUDAPolisher(std::uint32_t q, std::uint32_t e, std::uint32_t w, bool trim,
+        std::int8_t m, std::int8_t n, std::int8_t g,
+        std::shared_ptr<thread_pool::ThreadPool> thread_pool,
+        uint32_t cudapoa_batches, bool cuda_banded_alignment,
         uint32_t cudaaligner_batches);
     CUDAPolisher(const CUDAPolisher&) = delete;
     const CUDAPolisher& operator=(const CUDAPolisher&) = delete;
-    virtual void find_overlap_breaking_points(std::vector<std::unique_ptr<Overlap>>& overlaps) override;
+
+    virtual void find_break_points(
+        std::vector<std::unique_ptr<Overlap>>& overlaps,
+        const std::vector<std::unique_ptr<ram::Sequence>>& targets,
+        const std::vector<std::unique_ptr<ram::Sequence>>& sequences) override;
 
     static std::vector<uint32_t> calculate_batches_per_gpu(uint32_t cudapoa_batches, uint32_t gpus);
 

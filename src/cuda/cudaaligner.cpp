@@ -49,13 +49,14 @@ CUDABatchAligner::~CUDABatchAligner()
     CGA_CU_CHECK_ERR(cudaStreamDestroy(stream_));
 }
 
-bool CUDABatchAligner::addOverlap(Overlap* overlap, std::vector<std::unique_ptr<Sequence>>& sequences)
+bool CUDABatchAligner::addOverlap(Overlap* overlap,
+    const std::vector<std::unique_ptr<ram::Sequence>>& targets,
+    const std::vector<std::unique_ptr<ram::Sequence>>& sequences)
 {
-    const char* q = !overlap->strand_ ? &(sequences[overlap->q_id_]->data()[overlap->q_begin_]) :
-        &(sequences[overlap->q_id_]->reverse_complement()[overlap->q_length_ - overlap->q_end_]);
-    int32_t q_len = overlap->q_end_ - overlap->q_begin_;
-    const char* t = &(sequences[overlap->t_id_]->data()[overlap->t_begin_]);
-    int32_t t_len = overlap->t_end_ - overlap->t_begin_;
+    const char* q = &(sequences[overlap->q_id]->data[overlap->q_begin]);
+    int32_t q_len = overlap->q_end - overlap->q_begin;
+    const char* t = &(targets[overlap->t_id]->data[overlap->t_begin]);
+    int32_t t_len = overlap->t_end - overlap->t_begin;
 
     // NOTE: The cudaaligner API for adding alignments is the opposite of edlib. Hence, what is
     // treated as target in edlib is query in cudaaligner and vice versa.
@@ -95,8 +96,10 @@ void CUDABatchAligner::compute_cpu_overlaps()
     {
         // Run CPU version of overlap.
         Overlap* overlap = cpu_overlaps_[a];
-        overlap->align_overlaps(cpu_overlap_data_[a].first.c_str(), cpu_overlap_data_[a].first.length(),
-                                cpu_overlap_data_[a].second.c_str(), cpu_overlap_data_[a].second.length());
+        overlap->align(cpu_overlap_data_[a].first.c_str(),
+            cpu_overlap_data_[a].first.length(),
+            cpu_overlap_data_[a].second.c_str(),
+            cpu_overlap_data_[a].second.length());
     }
 }
 
@@ -112,13 +115,13 @@ void CUDABatchAligner::find_breaking_points(uint32_t window_length)
     }
     for(std::size_t a = 0; a < alignments.size(); a++)
     {
-        overlaps_[a]->cigar_ = alignments[a]->convert_to_cigar();
-        overlaps_[a]->find_breaking_points_from_cigar(window_length);
+        overlaps_[a]->cigar = alignments[a]->convert_to_cigar();
+        overlaps_[a]->find_break_points(window_length);
     }
     for(Overlap* overlap : cpu_overlaps_)
     {
         // Run CPU version of breaking points.
-        overlap->find_breaking_points_from_cigar(window_length);
+        overlap->find_break_points(window_length);
     }
 }
 

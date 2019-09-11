@@ -22,3 +22,6 @@
 [submodule "vendor/ClaraGenomicsAnalysis"]
 	path = vendor/ClaraGenomicsAnalysis
 	url = https://github.com/clara-genomics/ClaraGenomicsAnalysis
+[submodule "vendor/ram"]
+	path = vendor/ram
+	url = https://github.com/lbcb-sci/ram
