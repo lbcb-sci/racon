@@ -106,14 +106,11 @@ if (racon_build_tests)
     include_directories(${PROJECT_BINARY_DIR}/config)
     include_directories(${PROJECT_SOURCE_DIR}/src)
 
-    set(racon_test_sources
+    add_executable(racon_test
         test/racon_test.cpp)
 
     if (racon_enable_cuda)
-        cuda_add_executable(racon_test ${racon_test_sources})
         target_compile_definitions(racon_test PRIVATE CUDA_ENABLED)
-    else()
-        add_executable(racon_test ${racon_test_sources})
     endif()
 
     if (NOT TARGET gtest_main)

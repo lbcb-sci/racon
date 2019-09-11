@@ -372,6 +372,8 @@ void CUDAPolisher::polish(std::vector<std::unique_ptr<ram::Sequence>>& dst,
         std::string polished_data = "";
         uint32_t num_polished_windows = 0;
 
+        ram::Sequence::num_objects = 0;
+
         for (uint64_t i = 0; i < windows_.size(); ++i) {
 
             num_polished_windows += window_consensus_status_.at(i) == true ? 1 : 0;

@@ -117,6 +117,9 @@ void Polisher::initialize(
     const std::vector<std::unique_ptr<ram::Sequence>>& targets,
     const std::vector<std::unique_ptr<ram::Sequence>>& sequences) {
 
+    headers_.clear();
+    windows_.clear();
+
     if (targets.empty() || sequences.empty()) {
         return;
     }
@@ -380,9 +383,6 @@ void Polisher::polish(std::vector<std::unique_ptr<ram::Sequence>>& dst,
     } else {
         logger.log("[racon::Polisher::polish] generated consensus");
     }
-
-    std::vector<std::shared_ptr<Window>>().swap(windows_);
-    std::vector<std::unique_ptr<ram::Sequence>>().swap(headers_);
 }
 
 }
