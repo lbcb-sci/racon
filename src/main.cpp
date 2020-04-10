@@ -187,13 +187,17 @@ int main(int argc, char** argv) {
     }
   }
 
+  if (argc == 1) {
+    Help();
+    return 0;
+  }
+
   for (std::int32_t i = optind; i < argc; ++i) {
     input_paths.emplace_back(argv[i]);
   }
 
   if (input_paths.size() < 2) {
     std::cerr << "[racon::] error: missing input file(s)!" << std::endl;
-    Help();
     return 1;
   }
 
