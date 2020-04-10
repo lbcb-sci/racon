@@ -7,7 +7,7 @@
 #include <claragenomics/cudaaligner/aligner.hpp>
 #include <claragenomics/cudaaligner/alignment.hpp>
 
-#include "ram/sequence.hpp"
+#include "biosoup/sequence.hpp"
 
 #include "overlap.hpp"
 
@@ -33,8 +33,8 @@ class CUDABatchAligner
          * @return True if overlap could be added to the batch.
          */
         virtual bool addOverlap(Overlap* overlap,
-            const std::vector<std::unique_ptr<ram::Sequence>>& targets,
-            const std::vector<std::unique_ptr<ram::Sequence>>& sequences);
+            const std::vector<std::unique_ptr<biosoup::Sequence>>& targets,
+            const std::vector<std::unique_ptr<biosoup::Sequence>>& sequences);
 
         /**
          * @brief Checks if batch has any overlaps to process.

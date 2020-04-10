@@ -6,71 +6,70 @@
 
 #pragma once
 
-#include <stdlib.h>
-#include <vector>
+#include <cstdint>
 #include <memory>
+#include <vector>
 #include <string>
 #include <utility>
 
-namespace spoa {
-    class AlignmentEngine;
-}
+#include "spoa/alignment_engine.hpp"
 
 namespace racon {
 
 enum class WindowType {
-    kNGS, // Next Generation Sequencing
-    kTGS // Third Generation Sequencing
+  kNGS,  // Next Generation Sequencing
+  kTGS  // Third Generation Sequencing
 };
-
-class Window;
-std::shared_ptr<Window> createWindow(uint64_t id, uint32_t rank, WindowType type,
-    const char* backbone, uint32_t backbone_length, const char* quality,
-    uint32_t quality_length);
 
 class Window {
+ public:
+  Window(
+      std::uint64_t id,
+      std::uint32_t rank,
+      WindowType type,
+      const char* backbone, std::uint32_t backbone_len,
+      const char* quality, std::uint32_t quality_len);
 
-public:
-    ~Window();
+  Window(const Window&) = default;
+  Window& operator=(const Window&) = default;
 
-    uint64_t id() const {
-        return id_;
-    }
-    uint32_t rank() const {
-        return rank_;
-    }
+  Window(Window&&) = default;
+  Window& operator=(Window&&) = default;
 
-    const std::string& consensus() const {
-        return consensus_;
-    }
+  ~Window() = default;
 
-    bool generate_consensus(std::shared_ptr<spoa::AlignmentEngine> alignment_engine,
-        bool trim);
+  std::uint64_t id() const {
+    return id_;
+  }
+  std::uint32_t rank() const {
+    return rank_;
+  }
+  const std::string& consensus() const {
+    return consensus_;
+  }
 
-    void add_layer(const char* sequence, uint32_t sequence_length,
-        const char* quality, uint32_t quality_length, uint32_t begin,
-        uint32_t end);
+  bool GenerateConsensus(
+      std::shared_ptr<spoa::AlignmentEngine> alignment_engine,
+      bool trim);
 
-    friend std::shared_ptr<Window> createWindow(uint64_t id, uint32_t rank,
-        WindowType type, const char* backbone, uint32_t backbone_length,
-        const char* quality, uint32_t quality_length);
+  void AddLayer(
+      const char* sequence, uint32_t sequence_len,
+      const char* quality, uint32_t quality_len,
+      uint32_t begin,
+      uint32_t end);
 
 #ifdef CUDA_ENABLED
-    friend class CUDABatchProcessor;
+  friend class CUDABatchProcessor;
 #endif
-private:
-    Window(uint64_t id, uint32_t rank, WindowType type, const char* backbone,
-        uint32_t backbone_length, const char* quality, uint32_t quality_length);
-    Window(const Window&) = delete;
-    const Window& operator=(const Window&) = delete;
 
-    uint64_t id_;
-    uint32_t rank_;
-    WindowType type_;
-    std::string consensus_;
-    std::vector<std::pair<const char*, uint32_t>> sequences_;
-    std::vector<std::pair<const char*, uint32_t>> qualities_;
-    std::vector<std::pair<uint32_t, uint32_t>> positions_;
+ private:
+  std::uint64_t id_;
+  std::uint32_t rank_;
+  WindowType type_;
+  std::string consensus_;
+  std::vector<std::pair<const char*, std::uint32_t>> sequences_;
+  std::vector<std::pair<const char*, std::uint32_t>> qualities_;
+  std::vector<std::pair<std::uint32_t, std::uint32_t>> positions_;
 };
 
-}
+}  // namespace racon

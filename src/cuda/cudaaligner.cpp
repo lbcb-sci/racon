@@ -50,8 +50,8 @@ CUDABatchAligner::~CUDABatchAligner()
 }
 
 bool CUDABatchAligner::addOverlap(Overlap* overlap,
-    const std::vector<std::unique_ptr<ram::Sequence>>& targets,
-    const std::vector<std::unique_ptr<ram::Sequence>>& sequences)
+    const std::vector<std::unique_ptr<biosoup::Sequence>>& targets,
+    const std::vector<std::unique_ptr<biosoup::Sequence>>& sequences)
 {
     const char* q = &(sequences[overlap->q_id]->data[overlap->q_begin]);
     int32_t q_len = overlap->q_end - overlap->q_begin;
@@ -96,7 +96,7 @@ void CUDABatchAligner::compute_cpu_overlaps()
     {
         // Run CPU version of overlap.
         Overlap* overlap = cpu_overlaps_[a];
-        overlap->align(cpu_overlap_data_[a].first.c_str(),
+        overlap->Align(cpu_overlap_data_[a].first.c_str(),
             cpu_overlap_data_[a].first.length(),
             cpu_overlap_data_[a].second.c_str(),
             cpu_overlap_data_[a].second.length());
@@ -116,12 +116,12 @@ void CUDABatchAligner::find_breaking_points(uint32_t window_length)
     for(std::size_t a = 0; a < alignments.size(); a++)
     {
         overlaps_[a]->cigar = alignments[a]->convert_to_cigar();
-        overlaps_[a]->find_break_points(window_length);
+        overlaps_[a]->FindBreakPoints(window_length);
     }
     for(Overlap* overlap : cpu_overlaps_)
     {
         // Run CPU version of breaking points.
-        overlap->find_break_points(window_length);
+        overlap->FindBreakPoints(window_length);
     }
 }
 

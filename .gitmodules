@@ -1,24 +1,9 @@
-[submodule "vendor/bioparser"]
-	path = vendor/bioparser
-	url = https://github.com/rvaser/bioparser
 [submodule "vendor/spoa"]
 	path = vendor/spoa
 	url = https://github.com/rvaser/spoa
-[submodule "vendor/thread_pool"]
-	path = vendor/thread_pool
-	url = https://github.com/rvaser/thread_pool
 [submodule "vendor/edlib"]
 	path = vendor/edlib
 	url = https://github.com/martinsos/edlib
-[submodule "vendor/googletest"]
-	path = vendor/googletest
-	url = https://github.com/google/googletest
-[submodule "vendor/rampler"]
-	path = vendor/rampler
-	url = https://github.com/rvaser/rampler
-[submodule "vendor/logger"]
-	path = vendor/logger
-	url = https://github.com/rvaser/logger
 [submodule "vendor/ClaraGenomicsAnalysis"]
 	path = vendor/ClaraGenomicsAnalysis
 	url = https://github.com/clara-genomics/ClaraGenomicsAnalysis

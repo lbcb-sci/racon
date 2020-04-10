@@ -6,78 +6,74 @@
 
 #pragma once
 
-#include <stdlib.h>
-#include <vector>
+#include <cstdint>
 #include <memory>
-#include <unordered_map>
-#include <thread>
+#include <string>
+#include <vector>
 
-namespace thread_pool {
-    class ThreadPool;
-}
+#include "biosoup/sequence.hpp"
+#include "thread_pool/thread_pool.hpp"
 
-namespace spoa {
-    class AlignmentEngine;
-}
-
-namespace ram {
-    struct Sequence;
-}
+#include "overlap.hpp"
+#include "window.hpp"
 
 namespace racon {
 
-class Overlap;
-class Window;
-
-class Polisher;
-std::unique_ptr<Polisher> createPolisher(std::uint32_t q, std::uint32_t e,
-    std::uint32_t w, bool trim, std::int8_t m, std::int8_t n, std::int8_t g,
-    std::shared_ptr<thread_pool::ThreadPool> thread_pool,
-    std::uint32_t cudapoa_batches = 0, bool cuda_banded_alignment = false,
-    std::uint32_t cudaaligner_batches = 0);
-
 class Polisher {
-public:
-    virtual ~Polisher();
+ public:
+  Polisher(const Polisher&) = delete;
+  Polisher& operator=(const Polisher&) = delete;
 
-    virtual void initialize(
-        const std::vector<std::unique_ptr<ram::Sequence>>& targets,
-        const std::vector<std::unique_ptr<ram::Sequence>>& sequences);
+  Polisher(Polisher&&) = delete;
+  Polisher& operator=(Polisher&&) = delete;
 
-    virtual void polish(std::vector<std::unique_ptr<ram::Sequence>>& dst,
-        bool drop_unpolished_sequences);
+  virtual ~Polisher() = default;
 
-    friend std::unique_ptr<Polisher> createPolisher(std::uint32_t q, std::uint32_t e,
-        std::uint32_t w, bool trim, std::int8_t m, std::int8_t n, std::int8_t g,
-        std::shared_ptr<thread_pool::ThreadPool> thread_pool,
-        std::uint32_t cudapoa_batches, bool cuda_banded_alignment,
-        std::uint32_t cudaaligner_batches);
-protected:
-    Polisher(std::uint32_t q, std::uint32_t e, std::uint32_t w, bool trim,
-        std::int8_t m, std::int8_t n, std::int8_t g,
-        std::shared_ptr<thread_pool::ThreadPool> thread_pool);
-    Polisher(const Polisher&) = delete;
-    const Polisher& operator=(const Polisher&) = delete;
+  static std::unique_ptr<Polisher> Create(  // CPU or GPU polisher
+      double quality_threshold,
+      double error_threshold,
+      std::uint32_t window_len,
+      bool trim_consensus,
+      std::int8_t match,
+      std::int8_t mismatch,
+      std::int8_t gap,
+      std::shared_ptr<thread_pool::ThreadPool> thread_pool = nullptr,
+      std::uint32_t cudapoa_batches = 0,
+      bool cuda_banded_alignment = false,
+      std::uint32_t cudaaligner_batches = 0);
 
-    virtual void find_break_points(
-        std::vector<std::unique_ptr<Overlap>>& overlaps,
-        const std::vector<std::unique_ptr<ram::Sequence>>& targets,
-        const std::vector<std::unique_ptr<ram::Sequence>>& sequences);
+  virtual void Initialize(
+      const std::vector<std::unique_ptr<biosoup::Sequence>>& targets,
+      const std::vector<std::unique_ptr<biosoup::Sequence>>& sequences);
 
-    double q_;
-    double e_;
+  virtual std::vector<std::unique_ptr<biosoup::Sequence>> Polish(
+      bool drop_unpolished_sequences);
 
-    std::uint32_t w_;
-    bool trim_;
-    std::vector<std::shared_ptr<Window>> windows_;
+ protected:
+  Polisher(
+      double quality_threshold,
+      double error_threshold,
+      std::uint32_t window_len,
+      bool trim_consensus,
+      std::int8_t match,
+      std::int8_t mismatch,
+      std::int8_t gap,
+      std::shared_ptr<thread_pool::ThreadPool> thread_pool);
 
-    std::vector<std::shared_ptr<spoa::AlignmentEngine>> alignment_engines_;
+  virtual void FindBreakPoints(
+      const std::vector<std::unique_ptr<Overlap>>& overlaps,
+      const std::vector<std::unique_ptr<biosoup::Sequence>>& targets,
+      const std::vector<std::unique_ptr<biosoup::Sequence>>& sequences);
 
-    std::string dummy_quality_;
-    std::vector<std::unique_ptr<ram::Sequence>> headers_;
-
-    std::unordered_map<std::thread::id, uint32_t> thread_to_id_;
-    std::shared_ptr<thread_pool::ThreadPool> thread_pool_;
+  double q_;
+  double e_;
+  std::uint32_t w_;
+  bool trim_;
+  std::shared_ptr<thread_pool::ThreadPool> thread_pool_;
+  std::vector<std::unique_ptr<biosoup::Sequence>> headers_;
+  std::string dummy_quality_;
+  std::vector<std::shared_ptr<Window>> windows_;
+  std::vector<std::shared_ptr<spoa::AlignmentEngine>> alignment_engines_;
 };
 
-}
+}  // namespace racon

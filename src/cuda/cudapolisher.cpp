@@ -4,29 +4,25 @@
  * @brief CUDA Polisher class source file
  */
 
-#include <future>
-#include <iostream>
-#include <chrono>
+#include "cudapolisher.hpp"
+
 #include <cuda_profiler_api.h>
 
-#include "cudapolisher.hpp"
-#include <claragenomics/utils/cudautils.hpp>
+#include <future>  // NOLINT
+#include <iostream>
+#include <chrono>  // NOLINT
 
-#include "bioparser/bioparser.hpp"
-#include "logger/logger.hpp"
+#include "claragenomics/utils/cudautils.hpp"
+#include "biosoup/progress_bar.hpp"
+#include "biosoup/timer.hpp"
 
 namespace racon {
 
-// The logger used by racon has a fixed size of 20 bins
-// which is used for the progress bar updates. Hence all
-// updates need to be broken into 20 bins.
-const uint32_t RACON_LOGGER_BIN_SIZE = 20;
-
-CUDAPolisher::CUDAPolisher(std::uint32_t q, std::uint32_t e, std::uint32_t w,
+CUDAPolisher::CUDAPolisher(double q, double e, std::uint32_t w,
     bool trim, std::int8_t m, std::int8_t n, std::int8_t g,
     std::shared_ptr<thread_pool::ThreadPool> thread_pool,
-    uint32_t cudapoa_batches, bool cuda_banded_alignment,
-    uint32_t cudaaligner_batches)
+    std::uint32_t cudapoa_batches, bool cuda_banded_alignment,
+    std::uint32_t cudaaligner_batches)
         : Polisher(q, e, w, trim, m, n, g, thread_pool)
         , cudapoa_batches_(cudapoa_batches)
         , cudaaligner_batches_(cudaaligner_batches)
@@ -45,17 +41,18 @@ CUDAPolisher::CUDAPolisher(std::uint32_t q, std::uint32_t e, std::uint32_t w,
         throw std::runtime_error("No GPU devices found.");
     }
 
-    std::cerr << "Using " << num_devices_ << " GPU(s) to perform polishing" << std::endl;
+    // std::cerr << "Using " << num_devices_ << " GPU(s) to perform polishing" << std::endl;
 
     // Run dummy call on each device to initialize CUDA context.
     for(int32_t dev_id = 0; dev_id < num_devices_; dev_id++)
     {
-        std::cerr << "Initialize device " << dev_id << std::endl;
         CGA_CU_CHECK_ERR(cudaSetDevice(dev_id));
         CGA_CU_CHECK_ERR(cudaFree(0));
+        std::cerr << "[racon::CUDAPolisher::CUDAPolisher] initialized device "
+                  << dev_id << std::endl;
     }
 
-    std::cerr << "[CUDAPolisher] Constructed." << std::endl;
+    // std::cerr << "[CUDAPolisher] Constructed." << std::endl;
 }
 
 CUDAPolisher::~CUDAPolisher()
@@ -78,23 +75,24 @@ std::vector<uint32_t> CUDAPolisher::calculate_batches_per_gpu(uint32_t batches, 
 }
 
 
-void CUDAPolisher::find_break_points(
-    std::vector<std::unique_ptr<Overlap>>& overlaps,
-    const std::vector<std::unique_ptr<ram::Sequence>>& targets,
-    const std::vector<std::unique_ptr<ram::Sequence>>& sequences)
+void CUDAPolisher::FindBreakPoints(
+    const std::vector<std::unique_ptr<Overlap>>& overlaps,
+    const std::vector<std::unique_ptr<biosoup::Sequence>>& targets,
+    const std::vector<std::unique_ptr<biosoup::Sequence>>& sequences)
 {
     if (cudaaligner_batches_ < 1)
     {
         // TODO: Kept CPU overlap alignment right now while GPU is a dummy implmentation.
-        Polisher::find_break_points(overlaps, targets, sequences);
+        Polisher::FindBreakPoints(overlaps, targets, sequences);
     }
     else
     {
         // TODO: Experimentally this is giving decent perf
         const uint32_t MAX_ALIGNMENTS = 200;
 
-        logger::Logger logger;
-        logger.log();
+        biosoup::Timer timer;
+        timer.Start();
+
         std::mutex mutex_overlaps;
         uint32_t next_overlap_index = 0;
 
@@ -121,14 +119,11 @@ void CUDAPolisher::find_break_points(
             return {initial_count, next_overlap_index};
         };
 
-        // Variables for keeping track of logger progress bar.
-        uint32_t logger_step = overlaps.size() / RACON_LOGGER_BIN_SIZE;
-        int32_t log_bar_idx = 0, log_bar_idx_prev = -1;
-        uint32_t window_idx = 0;
-        std::mutex mutex_log_bar_idx;
+        std::mutex mutex_bar;
+        biosoup::ProgressBar bar{static_cast<std::uint32_t>(overlaps.size()), 16};
 
         // Lambda expression for processing a batch of alignments.
-        auto process_batch = [&fill_next_batch, &logger_step, &log_bar_idx, &log_bar_idx_prev, &window_idx, &mutex_log_bar_idx, &logger, this](CUDABatchAligner* batch) -> void {
+        auto process_batch = [&fill_next_batch, &mutex_bar, &bar, &timer, this](CUDABatchAligner* batch) -> void {
             while(true)
             {
                 auto range = fill_next_batch(batch);
@@ -138,18 +133,17 @@ void CUDAPolisher::find_break_points(
                     batch->alignAll();
                     batch->find_breaking_points(w_);
 
-                    // logging bar
+                    // progress bar
                     {
-                        std::lock_guard<std::mutex> guard(mutex_log_bar_idx);
-                        window_idx += range.second - range.first;
-                        log_bar_idx = window_idx / logger_step;
-                        if (log_bar_idx == log_bar_idx_prev) {
-                            continue;
-                        }
-                        else if (logger_step != 0 && log_bar_idx < static_cast<int32_t>(RACON_LOGGER_BIN_SIZE))
-                        {
-                            logger.bar("[racon::CUDAPolisher::initialize] aligning overlaps");
-                            log_bar_idx_prev = log_bar_idx;
+                        std::lock_guard<std::mutex> guard(mutex_bar);
+                        auto updates = range.second - range.first;
+                        while (updates--) {
+                          if (++bar) {
+                            std::cerr << "[racon::CUDAPolisher::Initialize] aligned overlaps "
+                                      << "[" << bar << "] "
+                                      << timer.Lap() << "s"
+                                      << "\r";
+                          }
                         }
                     }
                 }
@@ -159,6 +153,8 @@ void CUDAPolisher::find_break_points(
                 }
             }
         };
+
+        timer.Start();
 
         // Bin batches into each GPU.
         std::vector<uint32_t> batches_per_gpu = calculate_batches_per_gpu(cudaaligner_batches_, num_devices_);
@@ -171,14 +167,18 @@ void CUDAPolisher::find_break_points(
             }
         }
 
-        logger.log("[racon::CUDAPolisher::initialize] allocated memory on GPUs for alignment");
+        std::cerr << "[racon::CUDAPolisher::initialize] allocated memory on GPUs for alignment "
+                  << timer.Stop() << "s"
+                  << std::endl;
+
+        timer.Start();
 
         // Run batched alignment.
         std::vector<std::future<void>> thread_futures;
         for(auto& aligner : batch_aligners_)
         {
             thread_futures.emplace_back(
-                    thread_pool_->submit(
+                    thread_pool_->Submit(
                         process_batch,
                         aligner.get()
                         )
@@ -189,22 +189,23 @@ void CUDAPolisher::find_break_points(
         for (const auto& future : thread_futures) {
             future.wait();
         }
+        std::cerr << std::endl;
 
         batch_aligners_.clear();
     }
 }
 
-void CUDAPolisher::polish(std::vector<std::unique_ptr<ram::Sequence>>& dst,
+std::vector<std::unique_ptr<biosoup::Sequence>> CUDAPolisher::Polish(
     bool drop_unpolished_sequences)
 {
     if (cudapoa_batches_ < 1)
     {
-        Polisher::polish(dst, drop_unpolished_sequences);
+        return Polisher::Polish(drop_unpolished_sequences);
     }
     else
     {
-        logger::Logger logger;
-        logger.log();
+        biosoup::Timer timer;
+        timer.Start();
         // Creation and use of batches.
         const uint32_t MAX_DEPTH_PER_WINDOW = 200;
 
@@ -225,7 +226,9 @@ void CUDAPolisher::polish(std::vector<std::unique_ptr<ram::Sequence>>& dst,
             }
         }
 
-        logger.log("[racon::CUDAPolisher::polish] allocated memory on GPUs for polishing");
+        std::cerr << "[racon::CUDAPolisher::Polish] allocated memory on GPUs for polishing "
+                  << timer.Stop() << "s"
+                  << std::endl;
 
         // Mutex for accessing the vector of windows.
         std::mutex mutex_windows;
@@ -261,15 +264,13 @@ void CUDAPolisher::polish(std::vector<std::unique_ptr<ram::Sequence>>& dst,
             return {initial_count, next_window_index};
         };
 
-        // Variables for keeping track of logger progress bar.
-        uint32_t logger_step = windows_.size() / RACON_LOGGER_BIN_SIZE;
-        int32_t log_bar_idx = 0, log_bar_idx_prev = -1;
-        uint32_t window_idx = 0;
-        std::mutex mutex_log_bar_idx;
-        logger.log();
+        biosoup::ProgressBar bar{static_cast<std::uint32_t>(windows_.size()), 16};
+        std::mutex mutex_bar;
+
+        timer.Start();
 
         // Lambda function for processing each batch.
-        auto process_batch = [&fill_next_batch, &logger_step, &log_bar_idx, &mutex_log_bar_idx, &window_idx, &log_bar_idx_prev, &logger, this](CUDABatchProcessor* batch) -> void {
+        auto process_batch = [&fill_next_batch, &mutex_bar, &bar, &timer, this](CUDABatchProcessor* batch) -> void {
             while(true)
             {
                 std::pair<uint32_t, uint32_t> range = fill_next_batch(batch);
@@ -293,21 +294,17 @@ void CUDAPolisher::polish(std::vector<std::unique_ptr<ram::Sequence>>& dst,
                         window_consensus_status_.at(range.first + i) = results.at(i);
                     }
 
-                    // logging bar
+                    // progress bar
                     {
-                        std::lock_guard<std::mutex> guard(mutex_log_bar_idx);
-                        window_idx += results.size();
-                        log_bar_idx = window_idx / logger_step;
-                        if (log_bar_idx == log_bar_idx_prev) {
-                            continue;
-                        }
-                        else if (logger_step != 0 && log_bar_idx < static_cast<int32_t>(RACON_LOGGER_BIN_SIZE))
-                        {
-                            while(log_bar_idx_prev <= log_bar_idx)
-                            {
-                                logger.bar("[racon::CUDAPolisher::polish] generating consensus");
-                                log_bar_idx_prev++;
-                            }
+                        std::lock_guard<std::mutex> guard(mutex_bar);
+                        auto updates = results.size();
+                        while (updates--) {
+                          if (++bar) {
+                            std::cerr << "[racon::CUDAPolisher::Polish] generating consensus "
+                                      << "[" << bar << "] "
+                                      << timer.Lap() << "s"
+                                      << "\r";
+                          }
                         }
                     }
                 }
@@ -323,7 +320,7 @@ void CUDAPolisher::polish(std::vector<std::unique_ptr<ram::Sequence>>& dst,
         for(auto& batch_processor : batch_processors_)
         {
             thread_futures.emplace_back(
-                    thread_pool_->submit(
+                    thread_pool_->Submit(
                         process_batch,
                         batch_processor.get()
                         )
@@ -334,27 +331,27 @@ void CUDAPolisher::polish(std::vector<std::unique_ptr<ram::Sequence>>& dst,
         for (const auto& future : thread_futures) {
             future.wait();
         }
-
-        logger.log("[racon::CUDAPolisher::polish] polished windows on GPU");
+        std::cerr << std::endl;
+        timer.Stop();
 
         // Start timing CPU time for failed windows on GPU
-        logger.log();
+        timer.Start();
         // Process each failed windows in parallel on CPU
         std::vector<std::future<bool>> thread_failed_windows;
         for (uint64_t i = 0; i < windows_.size(); ++i) {
             if (window_consensus_status_.at(i) == false)
             {
-                thread_failed_windows.emplace_back(thread_pool_->submit(
-                            [&](uint64_t j) -> bool {
-                            auto it = thread_to_id_.find(std::this_thread::get_id());
-                            if (it == thread_to_id_.end()) {
-                            fprintf(stderr, "[racon::CUDAPolisher::polish] error: "
-                                    "thread identifier not present!\n");
-                            exit(1);
-                            }
-                            return window_consensus_status_.at(j) = windows_[j]->generate_consensus(
-                                    alignment_engines_[it->second], trim_);
-                            }, i));
+                thread_failed_windows.emplace_back(thread_pool_->Submit(
+                  [&] (uint64_t j) -> bool {
+                    auto it = thread_pool_->thread_ids().find(std::this_thread::get_id());
+                    if (it == thread_pool_->thread_ids().end()) {
+                      fprintf(stderr, "[racon::CUDAPolisher::Polish] error: "
+                          "thread identifier not present!\n");
+                      exit(1);
+                    }
+                    return window_consensus_status_.at(j) =
+                        windows_[j]->GenerateConsensus(alignment_engines_[it->second], trim_);
+                  }, i));
             }
         }
 
@@ -364,15 +361,19 @@ void CUDAPolisher::polish(std::vector<std::unique_ptr<ram::Sequence>>& dst,
         }
         if (thread_failed_windows.size() > 0)
         {
-            logger.log("[racon::CUDAPolisher::polish] polished remaining windows on CPU");
-            logger.log();
+            std::cerr << "[racon::CUDAPolisher::Polish] polished remaining windows on CPU "
+                      << timer.Stop() << "s"
+                      << std::endl;
         }
 
         // Collect results from all windows into final output.
         std::string polished_data = "";
         uint32_t num_polished_windows = 0;
 
-        ram::Sequence::num_objects = 0;
+        biosoup::Sequence::num_objects = 0;
+        std::vector<std::unique_ptr<biosoup::Sequence>> dst;
+
+        timer.Start();
 
         for (uint64_t i = 0; i < windows_.size(); ++i) {
 
@@ -387,7 +388,7 @@ void CUDAPolisher::polish(std::vector<std::unique_ptr<ram::Sequence>>& dst,
                     std::string tags = " LN:i:" + std::to_string(polished_data.size());
                     tags += " RC:i:" + std::to_string(headers_[windows_[i]->id()]->id);
                     tags += " XC:f:" + std::to_string(polished_ratio);
-                    dst.emplace_back(new ram::Sequence(
+                    dst.emplace_back(new biosoup::Sequence(
                         headers_[windows_[i]->id()]->name + tags, polished_data));
                 }
 
@@ -397,11 +398,14 @@ void CUDAPolisher::polish(std::vector<std::unique_ptr<ram::Sequence>>& dst,
             windows_[i].reset();
         }
 
-        logger.log("[racon::CUDAPolisher::polish] generated consensus");
+        std::cerr << "[racon::CUDAPolisher::Polish] generated consensus "
+                  << timer.Stop() << "s"
+                  << std::endl;
 
         // Clear POA processors.
         batch_processors_.clear();
+        return dst;
     }
 }
 
-}
+}  // namespace racon
