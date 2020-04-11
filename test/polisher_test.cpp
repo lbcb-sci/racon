@@ -99,7 +99,7 @@ TEST_F(RaconPolisherTest, ConsensusWithQualities) {
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
-  EXPECT_EQ(1311, EditDistance(polished.front()->data, reference->data));
+  EXPECT_EQ(1291, EditDistance(polished.front()->data, reference->data));
 }
 
 TEST_F(RaconPolisherTest, ConsensusWithoutQualities) {
@@ -110,7 +110,7 @@ TEST_F(RaconPolisherTest, ConsensusWithoutQualities) {
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
-  EXPECT_EQ(1579, EditDistance(polished.front()->data, reference->data));
+  EXPECT_EQ(1528, EditDistance(polished.front()->data, reference->data));
 }
 
 TEST_F(RaconPolisherTest, ConsensusWithQualitiesLargerWindow) {
@@ -121,7 +121,7 @@ TEST_F(RaconPolisherTest, ConsensusWithQualitiesLargerWindow) {
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
-  EXPECT_EQ(1290, EditDistance(polished.front()->data, reference->data));
+  EXPECT_EQ(1273, EditDistance(polished.front()->data, reference->data));
 }
 
 TEST_F(RaconPolisherTest, ConsensusWithQualitiesEditDistance) {
@@ -132,7 +132,7 @@ TEST_F(RaconPolisherTest, ConsensusWithQualitiesEditDistance) {
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
-  EXPECT_EQ(1327, EditDistance(polished.front()->data, reference->data));
+  EXPECT_EQ(1284, EditDistance(polished.front()->data, reference->data));
 }
 
 #ifdef CUDA_ENABLED
@@ -144,8 +144,8 @@ TEST_F(RaconPolisherTest, ConsensusWithQualitiesCUDAPoa) {
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
-  // CPU 1311
-  EXPECT_EQ(1341, EditDistance(polished.front()->data, reference->data));
+  // CPU 1291
+  EXPECT_EQ(1310, EditDistance(polished.front()->data, reference->data));
 }
 
 TEST_F(RaconPolisherTest, ConsensusWithQualitiesCUDAPoaAndAlignment) {
@@ -156,8 +156,8 @@ TEST_F(RaconPolisherTest, ConsensusWithQualitiesCUDAPoaAndAlignment) {
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
-  // CPU 1311
-  EXPECT_EQ(1341, EditDistance(polished.front()->data, reference->data));
+  // CPU 1291
+  EXPECT_EQ(1310, EditDistance(polished.front()->data, reference->data));
 }
 
 TEST_F(RaconPolisherTest, ConsensusWithoutQualitiesCUDAPoa) {
@@ -168,8 +168,8 @@ TEST_F(RaconPolisherTest, ConsensusWithoutQualitiesCUDAPoa) {
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
-  // CPU 1579
-  EXPECT_EQ(1574, EditDistance(polished.front()->data, reference->data));
+  // CPU 1528
+  EXPECT_EQ(1577, EditDistance(polished.front()->data, reference->data));
 }
 
 TEST_F(RaconPolisherTest, ConsensusWithoutQualitiesCUDAPoaAndAlignment) {
@@ -180,8 +180,8 @@ TEST_F(RaconPolisherTest, ConsensusWithoutQualitiesCUDAPoaAndAlignment) {
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
-  // CPU 1579
-  EXPECT_EQ(1579, EditDistance(polished.front()->data, reference->data));
+  // CPU 1528
+  EXPECT_EQ(1574, EditDistance(polished.front()->data, reference->data));
 }
 
 TEST_F(RaconPolisherTest, ConsensusWithQualitiesLargerWindowCUDAPoa) {
@@ -192,8 +192,8 @@ TEST_F(RaconPolisherTest, ConsensusWithQualitiesLargerWindowCUDAPoa) {
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
-  // CPU 1290
-  EXPECT_EQ(5303, EditDistance(polished.front()->data, reference->data));
+  // CPU 1273
+  EXPECT_EQ(3403, EditDistance(polished.front()->data, reference->data));
 }
 
 TEST_F(RaconPolisherTest, ConsensusWithQualitiesLargerWindowCUDAPoaAndAlignment) {
@@ -204,8 +204,8 @@ TEST_F(RaconPolisherTest, ConsensusWithQualitiesLargerWindowCUDAPoaAndAlignment)
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
-  // CPU 1290
-  EXPECT_EQ(5303, EditDistance(polished.front()->data, reference->data));
+  // CPU 1273
+  EXPECT_EQ(3403, EditDistance(polished.front()->data, reference->data));
 }
 
 TEST_F(RaconPolisherTest, ConsensusWithQualitiesEditDistanceCUDAPoa) {
@@ -216,8 +216,8 @@ TEST_F(RaconPolisherTest, ConsensusWithQualitiesEditDistanceCUDAPoa) {
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
-  // CPU 1327
-  EXPECT_EQ(1444, EditDistance(polished.front()->data, reference->data));
+  // CPU 1284
+  EXPECT_EQ(1499, EditDistance(polished.front()->data, reference->data));
 }
 
 TEST_F(RaconPolisherTest, ConsensusWithQualitiesEditDistanceCUDAPoaAndAlignment) {
@@ -228,8 +228,8 @@ TEST_F(RaconPolisherTest, ConsensusWithQualitiesEditDistanceCUDAPoaAndAlignment)
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
-  // CPU 1327
-  EXPECT_EQ(1444, EditDistance(polished.front()->data, reference->data));
+  // CPU 1284
+  EXPECT_EQ(1499, EditDistance(polished.front()->data, reference->data));
 }
 #endif
 

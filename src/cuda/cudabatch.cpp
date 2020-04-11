@@ -47,7 +47,7 @@ CUDABatchProcessor::CUDABatchProcessor(uint32_t max_window_depth,
     , seqs_added_per_window_()
 {
     bid_ = CUDABatchProcessor::batches++;
-    
+
     // Create new CUDA stream.
     CGA_CU_CHECK_ERR(cudaStreamCreate(&stream_));
 
@@ -94,8 +94,10 @@ bool CUDABatchProcessor::addWindow(std::shared_ptr<Window> window)
         rank.emplace_back(i);
     }
 
-    std::sort(rank.begin() + 1, rank.end(), [&](uint32_t lhs, uint32_t rhs) {
-            return window->positions_[lhs].first < window->positions_[rhs].first; });
+    std::stable_sort(rank.begin() + 1, rank.end(),
+        [&] (uint32_t lhs, uint32_t rhs) {
+          return window->positions_[lhs].first < window->positions_[rhs].first;
+        });
 
     // Start from index 1 since first sequence has already been added as backbone.
     uint32_t long_seq = 0;

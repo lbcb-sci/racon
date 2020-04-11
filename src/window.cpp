@@ -72,7 +72,7 @@ bool Window::GenerateConsensus(
     rank.emplace_back(i);
   }
 
-  std::sort(rank.begin() + 1, rank.end(),
+  std::stable_sort(rank.begin() + 1, rank.end(),
       [&] (std::uint32_t lhs, std::uint32_t rhs) {
         return positions_[lhs].first < positions_[rhs].first;
       });
