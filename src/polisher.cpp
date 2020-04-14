@@ -14,6 +14,9 @@
 #include "biosoup/timer.hpp"
 #include "ram/minimizer_engine.hpp"
 
+#include "overlap.hpp"
+#include "window.hpp"
+
 #ifdef CUDA_ENABLED
 #include "cuda/cudapolisher.hpp"
 #endif
@@ -175,12 +178,12 @@ void Polisher::Initialize(
           if (overlap_error(jt) >= e_) {
             continue;
           }
-          if (overlaps[jt.lhs_id >> 1] == nullptr ||
-              overlaps[jt.lhs_id >> 1]->Length() < overlap_length(jt)) {
-            overlaps[jt.lhs_id >> 1] = std::unique_ptr<racon::Overlap>(new Overlap(  // NOLINT
-                jt.lhs_id >> 1, jt.lhs_begin, jt.lhs_end,
+          if (overlaps[jt.lhs_id] == nullptr ||
+              overlaps[jt.lhs_id]->Length() < overlap_length(jt)) {
+            overlaps[jt.lhs_id] = std::unique_ptr<racon::Overlap>(new Overlap(
+                jt.lhs_id, jt.lhs_begin, jt.lhs_end,
                 jt.rhs_id, jt.rhs_begin, jt.rhs_end,
-                jt.lhs_id & 1));
+                jt.strand));
           }
         }
       }

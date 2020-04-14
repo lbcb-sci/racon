@@ -12,12 +12,13 @@
 #include <vector>
 
 #include "biosoup/sequence.hpp"
+#include "spoa/alignment_engine.hpp"
 #include "thread_pool/thread_pool.hpp"
 
-#include "overlap.hpp"
-#include "window.hpp"
-
 namespace racon {
+
+class Overlap;
+class Window;
 
 class Polisher {
  public:

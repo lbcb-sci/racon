@@ -11,7 +11,7 @@
 
 #include "racon/polisher.hpp"
 
-std::atomic<std::uint64_t> biosoup::Sequence::num_objects{0};
+std::atomic<std::uint32_t> biosoup::Sequence::num_objects{0};
 
 namespace {
 
