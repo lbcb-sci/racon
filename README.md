@@ -12,7 +12,7 @@ To build racon run the following commands:
 ```bash
 git clone --recursive https://github.com/lbcb-sci/racon.git racon
 cd racon && mkdir build && cd build
-cmake -Dracon_build_executable=ON -DCMAKE_BUILD_TYPE=Release .. && makes
+cmake -Dracon_build_executable=ON -DCMAKE_BUILD_TYPE=Release .. && make
 ./bin/racon
 ```
 which will display the following usage:
@@ -46,6 +46,14 @@ usage: racon [options ...] <target> <sequences>
     -g, --gap <int>
       default: -4
       gap penalty (must be negative)
+    -t, --threads <int>
+      default: 1
+      number of threads
+    --version
+      prints the version number
+    -h, --help
+      prints the usage
+
   only available when built with CUDA:
     -c, --cudapoa-batches
       default: 1
@@ -80,6 +88,19 @@ Note that the CUDA support flag does not produce a new binary target. Instead it
 - gcc 5.0+
 - cmake 3.10+
 - CUDA 9.0+
+
+## Unit tests
+
+To build racon unit tests run the following commands:
+```bash
+git clone --recursive https://github.com/lbcb-sci/racon.git racon
+cd racon && mkdir build && cd build
+cmake -Dracon_build_tests=ON -DCMAKE_BUILD_TYPE=Release .. && make
+./bin/racon_test
+```
+
+#### Dependencies
+- gtest
 
 ## Acknowledgment
 
