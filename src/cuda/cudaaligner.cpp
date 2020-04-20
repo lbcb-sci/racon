@@ -39,7 +39,7 @@ CUDABatchAligner::CUDABatchAligner(uint32_t max_query_size,
     aligner_ = claragenomics::cudaaligner::create_aligner(max_query_size,
                                                           max_target_size,
                                                           max_alignments,
-                                                          claragenomics::cudaaligner::AlignmentType::global,
+                                                          claragenomics::cudaaligner::AlignmentType::global_alignment,
                                                           stream_,
                                                           device_id);
 }
@@ -69,9 +69,7 @@ bool CUDABatchAligner::addOverlap(Overlap* overlap,
     else if (s == claragenomics::cudaaligner::StatusType::exceeded_max_alignment_difference
              || s == claragenomics::cudaaligner::StatusType::exceeded_max_length)
     {
-        cpu_overlap_data_.emplace_back(std::make_pair<std::string, std::string>(std::string(q, q + q_len),
-                                                                                std::string(t, t + t_len)));
-        cpu_overlaps_.push_back(overlap);
+        // Do nothing as this case will be handled by CPU aligner.
     }
     else if (s != claragenomics::cudaaligner::StatusType::success)
     {
@@ -87,23 +85,9 @@ bool CUDABatchAligner::addOverlap(Overlap* overlap,
 void CUDABatchAligner::alignAll()
 {
     aligner_->align_all();
-    compute_cpu_overlaps();
 }
 
-void CUDABatchAligner::compute_cpu_overlaps()
-{
-    for(std::size_t a = 0; a < cpu_overlaps_.size(); a++)
-    {
-        // Run CPU version of overlap.
-        Overlap* overlap = cpu_overlaps_[a];
-        overlap->Align(cpu_overlap_data_[a].first.c_str(),
-            cpu_overlap_data_[a].first.length(),
-            cpu_overlap_data_[a].second.c_str(),
-            cpu_overlap_data_[a].second.length());
-    }
-}
-
-void CUDABatchAligner::find_breaking_points(uint32_t window_length)
+void CUDABatchAligner::generate_cigar_strings()
 {
     aligner_->sync_alignments();
 
@@ -116,19 +100,12 @@ void CUDABatchAligner::find_breaking_points(uint32_t window_length)
     for(std::size_t a = 0; a < alignments.size(); a++)
     {
         overlaps_[a]->cigar = alignments[a]->convert_to_cigar();
-        overlaps_[a]->FindBreakPoints(window_length);
-    }
-    for(Overlap* overlap : cpu_overlaps_)
-    {
-        // Run CPU version of breaking points.
-        overlap->FindBreakPoints(window_length);
     }
 }
 
 void CUDABatchAligner::reset()
 {
     overlaps_.clear();
-    cpu_overlaps_.clear();
     cpu_overlap_data_.clear();
     aligner_->reset();
 }

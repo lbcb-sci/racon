@@ -107,11 +107,11 @@ void Help() {
 #ifdef CUDA_ENABLED
       "    -c, --cudapoa-batches\n"
       "      default: 1\n"
-      "      number of batches for CUDA accelerated polishing\n"
+      "      number of batches for CUDA accelerated polishing per GPU\n"
       "    -b, --cuda-banded-alignment\n"
       "      use banding approximation for alignment on GPU\n"
       "    --cudaaligner-batches\n"
-      "      number of batches for CUDA accelerated alignment\n"
+      "      number of batches for CUDA accelerated alignment per GPU\n"
 #endif
       "    -t, --threads <int>\n"
       "      default: 1\n"
