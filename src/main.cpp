@@ -105,12 +105,12 @@ void Help() {
       "      gap penalty (must be negative)\n"
 #ifdef CUDA_ENABLED
       "    -c, --cuda-poa-batches <int>\n"
-      "      default: 1\n"
+      "      default: 0\n"
       "      number of batches for CUDA accelerated polishing per GPU\n"
       "    -b, --cuda-banded-alignment\n"
       "      use banding approximation for alignment on GPU\n"
       "    -a, --cuda-aligner-batches <int>\n"
-      "      default: 1\n"
+      "      default: 0\n"
       "      number of batches for CUDA accelerated alignment per GPU\n"
 #endif
       "    -t, --threads <int>\n"
@@ -139,8 +139,8 @@ int main(int argc, char** argv) {
   bool drop_unpolished = true;
   std::uint32_t num_threads = 1;
 
-  std::uint32_t cuda_poa_batches = 1;
-  std::uint32_t cuda_aligner_batches = 1;
+  std::uint32_t cuda_poa_batches = 0;
+  std::uint32_t cuda_aligner_batches = 0;
   bool cuda_banded_alignment = false;
 
   std::string optstring = "uq:e:w:m:n:g:t:h";
