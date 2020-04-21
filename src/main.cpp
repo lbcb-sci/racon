@@ -16,7 +16,6 @@ std::atomic<std::uint32_t> biosoup::Sequence::num_objects{0};
 namespace {
 
 static const char* racon_version = RACON_VERSION;
-static const std::int32_t CUDAALIGNER_INPUT_CODE = 10000;
 
 static struct option options[] = {
   {"include-unpolished", no_argument, nullptr, 'u'},
@@ -28,9 +27,9 @@ static struct option options[] = {
   {"mismatch", required_argument, nullptr, 'n'},
   {"gap", required_argument, nullptr, 'g'},
 #ifdef CUDA_ENABLED
-  {"cudapoa-batches", optional_argument, nullptr, 'c'},
+  {"cuda-poa-batches", optional_argument, nullptr, 'c'},
   {"cuda-banded-alignment", no_argument, nullptr, 'b'},
-  {"cudaaligner-batches", required_argument, nullptr, CUDAALIGNER_INPUT_CODE},
+  {"cuda-aligner-batches", required_argument, nullptr, 'a'},
 #endif
   {"threads", required_argument, nullptr, 't'},
   {"version", no_argument, nullptr, 'v'},
@@ -105,12 +104,13 @@ void Help() {
       "      default: -4\n"
       "      gap penalty (must be negative)\n"
 #ifdef CUDA_ENABLED
-      "    -c, --cudapoa-batches\n"
+      "    -c, --cuda-poa-batches <int>\n"
       "      default: 1\n"
       "      number of batches for CUDA accelerated polishing per GPU\n"
       "    -b, --cuda-banded-alignment\n"
       "      use banding approximation for alignment on GPU\n"
-      "    --cudaaligner-batches\n"
+      "    -a, --cuda-aligner-batches <int>\n"
+      "      default: 1\n"
       "      number of batches for CUDA accelerated alignment per GPU\n"
 #endif
       "    -t, --threads <int>\n"
@@ -139,13 +139,13 @@ int main(int argc, char** argv) {
   bool drop_unpolished = true;
   std::uint32_t num_threads = 1;
 
-  std::uint32_t cudapoa_batches = 0;
-  std::uint32_t cudaaligner_batches = 0;
+  std::uint32_t cuda_poa_batches = 1;
+  std::uint32_t cuda_aligner_batches = 1;
   bool cuda_banded_alignment = false;
 
   std::string optstring = "uq:e:w:m:n:g:t:h";
 #ifdef CUDA_ENABLED
-  optstring += "bc::";
+  optstring += "c:b:a:";
 #endif
 
   int32_t argument;
@@ -162,22 +162,22 @@ int main(int argc, char** argv) {
 #ifdef CUDA_ENABLED
       case 'c':
         //if option c encountered, cudapoa_batches initialized with a default value of 1.
-        cudapoa_batches = 1;
+        cuda_poa_batches = 1;
         // next text entry is not an option, assuming it's the arg for option 'c'
         if (optarg == NULL && argv[optind] != NULL
             && argv[optind][0] != '-') {
-          cudapoa_batches = atoi(argv[optind++]);
+          cuda_poa_batches = atoi(argv[optind++]);
         }
         // optional argument provided in the ususal way
         if (optarg != NULL) {
-          cudapoa_batches = atoi(optarg);
+          cuda_poa_batches = atoi(optarg);
         }
         break;
       case 'b':
         cuda_banded_alignment = true;
         break;
-      case CUDAALIGNER_INPUT_CODE: // cudaaligner-batches
-        cudaaligner_batches = atoi(optarg);
+      case 'a':
+        cuda_aligner_batches = atoi(optarg);
         break;
 #endif
       case 't': num_threads = atoi(optarg); break;
@@ -244,7 +244,7 @@ int main(int argc, char** argv) {
   std::unique_ptr<racon::Polisher> polisher = nullptr;
   try {
     polisher = racon::Polisher::Create(q, e, w, trim, m, n, g, thread_pool,
-        cudapoa_batches, cuda_banded_alignment, cudaaligner_batches);
+        cuda_poa_batches, cuda_banded_alignment, cuda_aligner_batches);
   } catch (std::invalid_argument& exception) {
     std::cerr << exception.what() << std::endl;
     return 1;

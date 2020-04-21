@@ -55,12 +55,13 @@ usage: racon [options ...] <target> <sequences>
       prints the usage
 
   only available when built with CUDA:
-    -c, --cudapoa-batches
+    -c, --cuda-poa-batches <int>
       default: 1
       number of batches for CUDA accelerated polishing per GPU
     -b, --cuda-banded-alignment
       use banding approximation for alignment on GPU
-    --cudaaligner-batches
+    -a, --cuda-aligner-batches <int>
+      default: 1
       number of batches for CUDA accelerated alignment per GPU
 ```
 If you would like to add racon as a library to your project via CMake, add the following:
