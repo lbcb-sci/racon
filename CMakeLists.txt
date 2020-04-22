@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.9)
 
-project(racon VERSION 2.0.6
+project(racon VERSION 2.0.7
               LANGUAGES CXX
               DESCRIPTION "Racon is a c++ consensus module for raw de novo DNA assembly of long uncorrected reads.")
 
@@ -79,7 +79,7 @@ if(racon_enable_cuda)
 else()
   add_library(${PROJECT_NAME} ${${PROJECT_NAME}_sources})
 endif()
-target_link_libraries(${PROJECT_NAME} edlib spoa ram)
+target_link_libraries(${PROJECT_NAME} edlib_static spoa ram)
 if (racon_enable_cuda)
   target_link_libraries(${PROJECT_NAME} cudapoa cudaaligner)
 endif ()
