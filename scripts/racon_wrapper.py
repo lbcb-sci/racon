@@ -4,7 +4,7 @@ from __future__ import print_function
 import os, sys, time, shutil, argparse, subprocess
 
 def eprint(*args, **kwargs):
-    print(*args, file=sys.stderr, **kwargs, flush=True)
+    print(*args, file=sys.stderr, flush=True, **kwargs)
 
 #*******************************************************************************
 
