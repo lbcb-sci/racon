@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.2)
 project(racon)
-set(racon_version 1.4.17)
+set(racon_version 1.5.0)
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
@@ -27,13 +27,16 @@ if(racon_enable_cuda)
 endif()
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
+include_directories(${PROJECT_SOURCE_DIR}/vendor/intervaltree)
 
 set(racon_sources
     src/main.cpp
+    src/bed.cpp
     src/logger.cpp
     src/polisher.cpp
     src/overlap.cpp
     src/sequence.cpp
+    src/util.cpp
     src/window.cpp)
 
 if(racon_enable_cuda)
@@ -103,11 +106,15 @@ if (racon_build_tests)
     include_directories(${PROJECT_SOURCE_DIR}/src)
 
     set(racon_test_sources
+        test/bed_test.cpp
         test/racon_test.cpp
+        test/util_test.cpp
+        src/bed.cpp
         src/logger.cpp
         src/polisher.cpp
         src/overlap.cpp
         src/sequence.cpp
+        src/util.cpp
         src/window.cpp)
 
     if (racon_enable_cuda)

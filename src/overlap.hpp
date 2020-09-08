@@ -6,11 +6,13 @@
 
 #pragma once
 
-#include <stdlib.h>
-#include <stdint.h>
+#include "util.hpp"
+#include <cstdlib>
+#include <cstdint>
 #include <memory>
 #include <vector>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <unordered_map>
 
@@ -41,6 +43,14 @@ public:
         return t_id_;
     }
 
+    uint32_t t_begin() const {
+        return t_begin_;
+    }
+
+    uint32_t t_end() const {
+        return t_end_;
+    }
+
     uint32_t strand() const {
         return strand_;
     }
@@ -65,16 +75,18 @@ public:
         return cigar_;
     }
 
-    const std::vector<std::pair<uint32_t, uint32_t>>& breaking_points() const {
+    const std::vector<WindowInterval>& breaking_points() const {
         return breaking_points_;
     }
 
     void find_breaking_points(const std::vector<std::unique_ptr<Sequence>>& sequences,
-        uint32_t window_length);
+        std::vector<std::tuple<int64_t, int64_t, int64_t>> windows);
 
     friend bioparser::MhapParser<Overlap>;
     friend bioparser::PafParser<Overlap>;
     friend bioparser::SamParser<Overlap>;
+
+    friend std::ostream& operator<<(::std::ostream& os, const Overlap& a);
 
 #ifdef CUDA_ENABLED
     friend class CUDABatchAligner;
@@ -97,7 +109,7 @@ private:
     Overlap();
     Overlap(const Overlap&) = delete;
     const Overlap& operator=(const Overlap&) = delete;
-    virtual void find_breaking_points_from_cigar(uint32_t window_length);
+    virtual void find_breaking_points_from_cigar(std::vector<std::tuple<int64_t, int64_t, int64_t>> windows);
     virtual void align_overlaps(const char* q, uint32_t q_len, const char* t, uint32_t t_len);
 
     std::string q_name_;
@@ -119,8 +131,19 @@ private:
 
     bool is_valid_;
     bool is_transmuted_;
-    std::vector<std::pair<uint32_t, uint32_t>> breaking_points_;
+    // std::vector<std::tuple<uint32_t, uint32_t, uint32_t>> breaking_points_;
     std::vector<std::pair<uint32_t, uint32_t>> dual_breaking_points_;
+
+    std::vector<WindowInterval> breaking_points_;
 };
+
+inline std::ostream& operator<<(::std::ostream& os, const Overlap& a) {
+    std::string delim(" ");
+    os << a.q_id_ << delim << a.q_begin_ << delim << a.q_end_ << delim << a.q_length_
+        << delim << (a.strand_ ? "-" : "+")
+        << delim << a.t_id_ << delim << a.t_begin_ << delim << a.t_end_ << delim << a.t_length_
+        << delim << a.cigar_ << delim << a.is_valid_ << delim << a.is_transmuted_;
+    return os;
+}
 
 }

@@ -8,6 +8,7 @@
 
 #include "sequence.hpp"
 #include "overlap.hpp"
+#include "util.hpp"
 #include "edlib.h"
 
 namespace racon {
@@ -114,18 +115,6 @@ Overlap::Overlap()
         breaking_points_(), dual_breaking_points_() {
 }
 
-template<typename T>
-bool transmuteId(const std::unordered_map<T, uint64_t>& t_to_id, const T& t,
-    uint64_t& id) {
-
-    auto it = t_to_id.find(t);
-    if (it == t_to_id.end()) {
-        return false;
-    }
-    id = it->second;
-    return true;
-}
-
 void Overlap::transmute(const std::vector<std::unique_ptr<Sequence>>& sequences,
     const std::unordered_map<std::string, uint64_t>& name_to_id,
     const std::unordered_map<uint64_t, uint64_t>& id_to_id) {
@@ -177,7 +166,7 @@ void Overlap::transmute(const std::vector<std::unique_ptr<Sequence>>& sequences,
 }
 
 void Overlap::find_breaking_points(const std::vector<std::unique_ptr<Sequence>>& sequences,
-    uint32_t window_length) {
+    std::vector<std::tuple<int64_t, int64_t, int64_t>> windows) {
 
     if (!is_transmuted_) {
         fprintf(stderr, "[racon::Overlap::find_breaking_points] error: "
@@ -197,7 +186,7 @@ void Overlap::find_breaking_points(const std::vector<std::unique_ptr<Sequence>>&
         align_overlaps(q, q_end_ - q_begin_, t, t_end_ - t_begin_);
     }
 
-    find_breaking_points_from_cigar(window_length);
+    find_breaking_points_from_cigar(std::move(windows));
 
     std::string().swap(cigar_);
 }
@@ -223,72 +212,16 @@ void Overlap::align_overlaps(const char* q, uint32_t q_length, const char* t, ui
     edlibFreeAlignResult(result);
 }
 
-void Overlap::find_breaking_points_from_cigar(uint32_t window_length)
+void Overlap::find_breaking_points_from_cigar(std::vector<std::tuple<int64_t, int64_t, int64_t>> windows)
 {
-    // find breaking points from cigar
-    std::vector<int32_t> window_ends;
-    for (uint32_t i = 0; i < t_end_; i += window_length) {
-        if (i > t_begin_) {
-            window_ends.emplace_back(i - 1);
-        }
-    }
-    window_ends.emplace_back(t_end_ - 1);
+    int64_t q_start = (strand_ ? (q_length_ - q_end_) : q_begin_);
+    int64_t t_start = t_begin_;
 
-    uint32_t w = 0;
-    bool found_first_match = false;
-    std::pair<uint32_t, uint32_t> first_match = {0, 0}, last_match = {0, 0};
+    std::vector<WindowInterval> result = generate_window_breakpoints(
+            cigar_, q_start, t_start,
+            std::move(windows));
 
-    int32_t q_ptr = (strand_ ? (q_length_ - q_end_) : q_begin_) - 1;
-    int32_t t_ptr = t_begin_ - 1;
-
-    for (uint32_t i = 0, j = 0; i < cigar_.size(); ++i) {
-        if (cigar_[i] == 'M' || cigar_[i] == '=' || cigar_[i] == 'X') {
-            uint32_t k = 0, num_bases = atoi(&cigar_[j]);
-            j = i + 1;
-            while (k < num_bases) {
-                ++q_ptr;
-                ++t_ptr;
-
-                if (!found_first_match) {
-                    found_first_match = true;
-                    first_match.first = t_ptr;
-                    first_match.second = q_ptr;
-                }
-                last_match.first = t_ptr + 1;
-                last_match.second = q_ptr + 1;
-                if (t_ptr == window_ends[w]) {
-                    if (found_first_match) {
-                        breaking_points_.emplace_back(first_match);
-                        breaking_points_.emplace_back(last_match);
-                    }
-                    found_first_match = false;
-                    ++w;
-                }
-
-                ++k;
-            }
-        } else if (cigar_[i] == 'I') {
-            q_ptr += atoi(&cigar_[j]);
-            j = i + 1;
-        } else if (cigar_[i] == 'D' || cigar_[i] == 'N') {
-            uint32_t k = 0, num_bases = atoi(&cigar_[j]);
-            j = i + 1;
-            while (k < num_bases) {
-                ++t_ptr;
-                if (t_ptr == window_ends[w]) {
-                    if (found_first_match) {
-                        breaking_points_.emplace_back(first_match);
-                        breaking_points_.emplace_back(last_match);
-                    }
-                    found_first_match = false;
-                    ++w;
-                }
-                ++k;
-            }
-        } else if (cigar_[i] == 'S' || cigar_[i] == 'H' || cigar_[i] == 'P') {
-            j = i + 1;
-        }
-    }
+    std::swap(breaking_points_, result);
 }
 
 }

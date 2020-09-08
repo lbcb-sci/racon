@@ -1,9 +1,11 @@
 racon_cpp_sources = files([
+  'bed.cpp',
   'logger.cpp',
   'overlap.cpp',
   'polisher.cpp',
   'sequence.cpp',
-  'window.cpp'
+  'util.cpp',
+  'window.cpp',
 ])
 
 racon_extra_flags = []

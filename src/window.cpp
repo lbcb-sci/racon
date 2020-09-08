@@ -13,8 +13,8 @@
 namespace racon {
 
 std::shared_ptr<Window> createWindow(uint64_t id, uint32_t rank, WindowType type,
-    const char* backbone, uint32_t backbone_length, const char* quality,
-    uint32_t quality_length) {
+    uint32_t window_start, const char* backbone, uint32_t backbone_length,
+    const char* quality, uint32_t quality_length) {
 
     if (backbone_length == 0 || backbone_length != quality_length) {
         fprintf(stderr, "[racon::createWindow] error: "
@@ -22,13 +22,15 @@ std::shared_ptr<Window> createWindow(uint64_t id, uint32_t rank, WindowType type
         exit(1);
     }
 
-    return std::shared_ptr<Window>(new Window(id, rank, type, backbone,
+    return std::shared_ptr<Window>(new Window(id, rank, type, window_start, backbone,
         backbone_length, quality, quality_length));
 }
 
-Window::Window(uint64_t id, uint32_t rank, WindowType type, const char* backbone,
-    uint32_t backbone_length, const char* quality, uint32_t quality_length)
-        : id_(id), rank_(rank), type_(type), consensus_(), sequences_(),
+Window::Window(uint64_t id, uint32_t rank, WindowType type, uint32_t window_start,
+    const char* backbone, uint32_t backbone_length, const char* quality,
+    uint32_t quality_length)
+        : id_(id), rank_(rank), type_(type), start_(window_start), end_(window_start + backbone_length),
+        consensus_(), sequences_(),
         qualities_(), positions_() {
 
     sequences_.emplace_back(backbone, backbone_length);
@@ -53,7 +55,8 @@ void Window::add_layer(const char* sequence, uint32_t sequence_length,
     }
     if (begin >= end || begin > sequences_.front().second || end > sequences_.front().second) {
         fprintf(stderr, "[racon::Window::add_layer] error: "
-            "layer begin and end positions are invalid!\n");
+            "layer begin and end positions are invalid! begin = %lu, end = %lu, backbone_len = %lu\n",
+            begin, end, sequences_.front().second);
         exit(1);
     }
 
@@ -139,6 +142,20 @@ bool Window::generate_consensus(std::shared_ptr<spoa::AlignmentEngine> alignment
     }
 
     return true;
+}
+
+std::ostream& operator<<(std::ostream& os, const Window& a)
+{
+    os << "Window: id = " << a.id_ << ", rank = " << a.rank_ << ", type = "
+        << ((a.type_ == WindowType::kNGS) ? "NGS" : "TGS")
+        << ", start = " << a.start_
+        << ", end = " << a.end_
+        << ", backbone_len = " << a.backbone_length()
+        << ", consensus_len = " << a.consensus_.size()
+        << ", seqs_len = " << a.sequences_.size()
+        << ", quals_len = " << a.qualities_.size()
+        << ", pos_len = " << a.positions_.size();
+    return os;
 }
 
 }
