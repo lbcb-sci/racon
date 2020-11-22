@@ -1,7 +1,7 @@
 # Racon
 
 [![Latest GitHub release](https://img.shields.io/github/release/lbcb-sci/racon.svg)](https://github.com/lbcb-sci/racon/releases/latest)
-[![Build status for gcc/clang](https://travis-ci.org/lbcb-sci/racon.svg?branch=master)](https://travis-ci.org/lbcb-sci/racon)
+[![Build status for gcc/clang](https://travis-ci.com/lbcb-sci/racon.svg?branch=master)](https://travis-ci.com/lbcb-sci/racon)
 [![Published in Genome Research](https://img.shields.io/badge/published%20in-Genome%20Research-blue.svg)](https://doi.org/10.1101/gr.214270.116)
 
 Consensus module for raw de novo DNA assembly of long uncorrected reads.
