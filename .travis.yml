@@ -16,15 +16,17 @@ matrix:
       env:
         - SET_COMPILER="export CC=gcc-4.8 && export CXX=g++-4.8"
 
-    - name: "Clang 3.5 (Linux)"  # Clang 5.0 & CMake 3.9.2
+    - name: "Clang 4.0 (Linux)"  # Clang 4.0 & CMake 3.9.2
       os: linux
       addons:
         apt:
+          sources:
+            - llvm-toolchain-trusty-4.0
           packages:
-            - clang-5.0
+            - clang-4.0
             - cmake
       env:
-        - SET_COMPILER="export CC=clang-5.0 && export CXX=clang++-5.0"
+        - SET_COMPILER="export CC=clang-4.0 && export CXX=clang++-4.0"
 
     - name: "Clang Xcode 9.0 (OSX)"  # Clang 9.0.0 & CMake 3.9.2
       os: osx
