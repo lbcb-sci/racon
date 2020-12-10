@@ -34,7 +34,7 @@ matrix:
 
 before_install:
   - eval "${SET_COMPILER}"
-  - git clone https://github.com/google/googletest && cd googletest && mkdir build && cd build
+  - git clone https://github.com/google/googletest && cd googletest && mkdir build && cd build && git checkout 703bd9c
   - cmake -DCMAKE_CXX_FLAGS="-std=c++11" .. && make && sudo make install
   - cd ../../
 

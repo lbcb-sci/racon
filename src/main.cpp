@@ -17,6 +17,9 @@ namespace {
 
 static const char* racon_version = RACON_VERSION;
 
+static const std::int32_t CUDAALIGNER_INPUT_CODE = 10000;
+static const std::int32_t CUDAALIGNER_BAND_WIDTH_INPUT_CODE = 10001;
+
 static struct option options[] = {
   {"include-unpolished", no_argument, nullptr, 'u'},
   {"window-length", required_argument, nullptr, 'w'},
@@ -29,7 +32,8 @@ static struct option options[] = {
 #ifdef CUDA_ENABLED
   {"cuda-poa-batches", optional_argument, nullptr, 'c'},
   {"cuda-banded-alignment", no_argument, nullptr, 'b'},
-  {"cuda-aligner-batches", required_argument, nullptr, 'a'},
+  {"cuda-aligner-batches", required_argument, nullptr, CUDAALIGNER_INPUT_CODE},
+  {"cuda-aligner-band-width", required_argument, nullptr, CUDAALIGNER_BAND_WIDTH_INPUT_CODE},  // NOLINT
 #endif
   {"threads", required_argument, nullptr, 't'},
   {"version", no_argument, nullptr, 'v'},
@@ -109,9 +113,13 @@ void Help() {
       "      number of batches for CUDA accelerated polishing per GPU\n"
       "    -b, --cuda-banded-alignment\n"
       "      use banding approximation for alignment on GPU\n"
-      "    -a, --cuda-aligner-batches <int>\n"
+      "    --cuda-aligner-batches <int>\n"
       "      default: 0\n"
       "      number of batches for CUDA accelerated alignment per GPU\n"
+      "    --cuda-aligner-band-width <int>\n"
+      "      default: 0\n"
+      "      band width for cuda alignment (must be >=0, otherwise band width\n"
+      "      is determined automatically)\n"
 #endif
       "    -t, --threads <int>\n"
       "      default: 1\n"
@@ -141,15 +149,16 @@ int main(int argc, char** argv) {
 
   std::uint32_t cuda_poa_batches = 0;
   std::uint32_t cuda_aligner_batches = 0;
+  std::uint32_t cuda_aligner_band_width = 0;
   bool cuda_banded_alignment = false;
 
   std::string optstring = "uq:e:w:m:n:g:t:h";
 #ifdef CUDA_ENABLED
-  optstring += "c:b:a:";
+  optstring += "c:b:";
 #endif
 
   int32_t argument;
-  while ((argument = getopt_long(argc, argv, optstring.c_str(), options, nullptr)) != -1) {
+  while ((argument = getopt_long(argc, argv, optstring.c_str(), options, nullptr)) != -1) {  // NOLINT
     switch (argument) {
       case 'u': drop_unpolished = false; break;
       case 'q': q = atof(optarg); break;
@@ -161,11 +170,11 @@ int main(int argc, char** argv) {
       case 'g': g = atoi(optarg); break;
 #ifdef CUDA_ENABLED
       case 'c':
-        //if option c encountered, cudapoa_batches initialized with a default value of 1.
+        // if option c encountered, cudapoa_batches initialized with a default
+        // value of 1
         cuda_poa_batches = 1;
-        // next text entry is not an option, assuming it's the arg for option 'c'
-        if (optarg == NULL && argv[optind] != NULL
-            && argv[optind][0] != '-') {
+        // next text entry is not an option, assuming it's the arg for option
+        if (optarg == NULL && argv[optind] != NULL && argv[optind][0] != '-') {
           cuda_poa_batches = atoi(argv[optind++]);
         }
         // optional argument provided in the ususal way
@@ -176,8 +185,11 @@ int main(int argc, char** argv) {
       case 'b':
         cuda_banded_alignment = true;
         break;
-      case 'a':
+      case CUDAALIGNER_INPUT_CODE:  // cuda-aligner-batches
         cuda_aligner_batches = atoi(optarg);
+        break;
+      case CUDAALIGNER_BAND_WIDTH_INPUT_CODE:  // cuda-aligner-band-width
+        cuda_aligner_band_width = atoi(optarg);
         break;
 #endif
       case 't': num_threads = atoi(optarg); break;
@@ -243,8 +255,19 @@ int main(int argc, char** argv) {
 
   std::unique_ptr<racon::Polisher> polisher = nullptr;
   try {
-    polisher = racon::Polisher::Create(q, e, w, trim, m, n, g, thread_pool,
-        cuda_poa_batches, cuda_banded_alignment, cuda_aligner_batches);
+    polisher = racon::Polisher::Create(
+        q,
+        e,
+        w,
+        trim,
+        m,
+        n,
+        g,
+        thread_pool,
+        cuda_poa_batches,
+        cuda_banded_alignment,
+        cuda_aligner_batches,
+        cuda_aligner_band_width);
   } catch (std::invalid_argument& exception) {
     std::cerr << exception.what() << std::endl;
     return 1;

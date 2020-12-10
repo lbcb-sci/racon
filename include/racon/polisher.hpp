@@ -41,7 +41,8 @@ class Polisher {
       std::shared_ptr<thread_pool::ThreadPool> thread_pool = nullptr,
       std::uint32_t cudapoa_batches = 0,
       bool cuda_banded_alignment = false,
-      std::uint32_t cudaaligner_batches = 0);
+      std::uint32_t cudaaligner_batches = 0,
+      std::uint32_t cuda_aligner_band_width = 0);
 
   virtual void Initialize(
       const std::vector<std::unique_ptr<biosoup::Sequence>>& targets,

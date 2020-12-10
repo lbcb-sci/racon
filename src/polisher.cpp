@@ -44,12 +44,12 @@ Polisher::Polisher(
       windows_(),
       alignment_engines_() {
   for (std::uint32_t i = 0; i < thread_pool->num_threads(); ++i) {
-    alignment_engines_.emplace_back(spoa::createAlignmentEngine(
+    alignment_engines_.emplace_back(spoa::AlignmentEngine::Create(
         spoa::AlignmentType::kNW,
         match,
         mismatch,
         gap));
-    alignment_engines_.back()->prealloc(w_, 5);
+    alignment_engines_.back()->Prealloc(w_, 5);
   }
 }
 
@@ -64,7 +64,8 @@ std::unique_ptr<Polisher> Polisher::Create(
     std::shared_ptr<thread_pool::ThreadPool> thread_pool,
     std::uint32_t cudapoa_batches,
     bool cuda_banded_alignment,
-    std::uint32_t cudaaligner_batches) {
+    std::uint32_t cudaaligner_batches,
+    std::uint32_t cuda_aligner_band_width) {
 
   if (window_len == 0) {
     throw std::invalid_argument(
@@ -89,13 +90,15 @@ std::unique_ptr<Polisher> Polisher::Create(
         thread_pool,
         cudapoa_batches,
         cuda_banded_alignment,
-        cudaaligner_batches));
+        cudaaligner_batches,
+        cuda_aligner_band_width));
 #else
     throw std::logic_error(
         "[racon::Polisher::Create] error: CUDA support is not available");
 #endif
   } else {
     (void) cuda_banded_alignment;
+    (void) cuda_aligner_band_width;
     return std::unique_ptr<Polisher>(new Polisher(
         quality_threshold,
         error_threshold,

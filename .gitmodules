@@ -4,9 +4,9 @@
 [submodule "vendor/edlib"]
 	path = vendor/edlib
 	url = https://github.com/martinsos/edlib
-[submodule "vendor/ClaraGenomicsAnalysis"]
-	path = vendor/ClaraGenomicsAnalysis
-	url = https://github.com/clara-genomics/ClaraGenomicsAnalysis
 [submodule "vendor/ram"]
 	path = vendor/ram
 	url = https://github.com/lbcb-sci/ram
+[submodule "vendor/GenomeWorks"]
+	path = vendor/GenomeWorks
+	url = https://github.com/clara-parabricks/GenomeWorks

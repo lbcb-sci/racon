@@ -1,15 +1,11 @@
-/*!
- * @file window.cpp
- *
- * @brief Window class source file
- */
-
-#include "window.hpp"
+// Copyright (C) 2020 Robert Vaser
 
 #include <algorithm>
 #include <stdexcept>
 
-#include "spoa/spoa.hpp"
+#include "spoa/graph.hpp"
+
+#include "window.hpp"
 
 namespace racon {
 
@@ -33,7 +29,6 @@ void Window::AddLayer(
     const char* quality, std::uint32_t quality_len,
     std::uint32_t begin,
     std::uint32_t end) {
-
   if (quality != nullptr && sequence_len != quality_len) {
     throw std::invalid_argument(
         "[racon::Window::AddLayer] error: unequal quality size");
@@ -53,15 +48,14 @@ void Window::AddLayer(
 bool Window::GenerateConsensus(
     std::shared_ptr<spoa::AlignmentEngine> alignment_engine,
     bool trim) {
-
   if (sequences_.size() < 3) {
     consensus_ = std::string(
         sequences_.front().first, sequences_.front().second);
     return false;
   }
 
-  auto graph = spoa::createGraph();
-  graph->add_alignment(
+  auto graph = spoa::Graph{};
+  graph.AddAlignment(
       spoa::Alignment(),
       sequences_.front().first, sequences_.front().second,
       qualities_.front().first, qualities_.front().second);
@@ -84,34 +78,35 @@ bool Window::GenerateConsensus(
     spoa::Alignment alignment;
     if (positions_[i].first < offset &&
         positions_[i].second > sequences_.front().second - offset) {
-      alignment = alignment_engine->align(
+      alignment = alignment_engine->Align(
           sequences_[i].first, sequences_[i].second,
           graph);
     } else {
-      std::vector<int32_t> mapping;
-      auto subgraph = graph->subgraph(
-          positions_[i].first, positions_[i].second,
-          mapping);
-      alignment = alignment_engine->align(
+      std::vector<const spoa::Graph::Node*> mapping;
+      auto subgraph = graph.Subgraph(
+          positions_[i].first,
+          positions_[i].second,
+          &mapping);
+      alignment = alignment_engine->Align(
           sequences_[i].first, sequences_[i].second,
           subgraph);
-      subgraph->update_alignment(alignment, mapping);
+      subgraph.UpdateAlignment(mapping, &alignment);
     }
 
     if (qualities_[i].first == nullptr) {
-      graph->add_alignment(
+      graph.AddAlignment(
           alignment,
           sequences_[i].first, sequences_[i].second);
     } else {
-      graph->add_alignment(
+      graph.AddAlignment(
         alignment,
         sequences_[i].first, sequences_[i].second,
         qualities_[i].first, qualities_[i].second);
-      }
+    }
   }
 
   std::vector<std::uint32_t> coverages;
-  consensus_ = graph->generate_consensus(coverages);
+  consensus_ = graph.GenerateConsensus(&coverages);
 
   if (type_ == WindowType::kTGS && trim) {
     std::uint32_t average_coverage = (sequences_.size() - 1) / 2;
