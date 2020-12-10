@@ -77,7 +77,7 @@ target_link_libraries(<your_exe> racon)
 ```
 
 #### Dependencies
-- gcc 4.8+ or clang 3.5+
+- gcc 4.8+ or clang 5.0+
 - cmake 3.9+
 - zlib (for binary only)
 
