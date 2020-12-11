@@ -99,7 +99,7 @@ void CUDAPolisher::FindBreakPoints(
 
     // Lambda expression for processing a batch of alignments
     auto process_batch = [&](CUDABatchAligner* batch) -> void {
-      while(true) {
+      while (true) {
         auto range = fill_next_batch(batch);
         if (batch->HasOverlaps()) {
           // Launch workload
