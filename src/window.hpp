@@ -1,10 +1,7 @@
-/*!
- * @file window.hpp
- *
- * @brief Window class header file
- */
+// Copyright (c) 2020 Robert Vaser
 
-#pragma once
+#ifndef RACON_WINDOW_HPP_
+#define RACON_WINDOW_HPP_
 
 #include <cstdint>
 #include <memory>
@@ -21,7 +18,7 @@ enum class WindowType {
   kTGS  // Third Generation Sequencing
 };
 
-class Window {
+struct Window {
  public:
   Window(
       std::uint64_t id,
@@ -38,17 +35,7 @@ class Window {
 
   ~Window() = default;
 
-  std::uint64_t id() const {
-    return id_;
-  }
-  std::uint32_t rank() const {
-    return rank_;
-  }
-  const std::string& consensus() const {
-    return consensus_;
-  }
-
-  bool GenerateConsensus(
+  void GenerateConsensus(
       std::shared_ptr<spoa::AlignmentEngine> alignment_engine,
       bool trim);
 
@@ -58,18 +45,16 @@ class Window {
       uint32_t begin,
       uint32_t end);
 
-#ifdef CUDA_ENABLED
-  friend class CUDABatchProcessor;
-#endif
-
- private:
-  std::uint64_t id_;
-  std::uint32_t rank_;
-  WindowType type_;
-  std::string consensus_;
-  std::vector<std::pair<const char*, std::uint32_t>> sequences_;
-  std::vector<std::pair<const char*, std::uint32_t>> qualities_;
-  std::vector<std::pair<std::uint32_t, std::uint32_t>> positions_;
+  std::uint64_t id;
+  std::uint32_t rank;
+  WindowType type;
+  bool status;
+  std::string consensus;
+  std::vector<std::pair<const char*, std::uint32_t>> sequences;
+  std::vector<std::pair<const char*, std::uint32_t>> qualities;
+  std::vector<std::pair<std::uint32_t, std::uint32_t>> positions;
 };
 
 }  // namespace racon
+
+#endif  // RACON_WINDOW_HPP_

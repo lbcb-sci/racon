@@ -79,13 +79,13 @@ CUDABatchProcessor::~CUDABatchProcessor() {
 
 bool CUDABatchProcessor::AddWindow(std::shared_ptr<Window> window) {
   Group poa_group;
-  std::uint32_t num_seqs = window->sequences_.size();
+  std::uint32_t num_seqs = window->sequences.size();
   std::vector<std::vector<std::int8_t>> all_read_weights(
       num_seqs, std::vector<std::int8_t>());
 
   // Add first sequence as backbone to graph.
-  std::pair<const char*, std::uint32_t> seq = window->sequences_.front();
-  std::pair<const char*, std::uint32_t> qualities = window->qualities_.front();
+  std::pair<const char*, std::uint32_t> seq = window->sequences.front();
+  std::pair<const char*, std::uint32_t> qualities = window->qualities.front();
   std::vector<std::int8_t> backbone_weights;
   ConvertPhredQualityToWeights(
       qualities.first,
@@ -100,7 +100,7 @@ bool CUDABatchProcessor::AddWindow(std::shared_ptr<Window> window) {
 
   // Add the rest of the sequences in sorted order of starting positions.
   std::vector<std::uint32_t> rank;
-  rank.reserve(window->sequences_.size());
+  rank.reserve(window->sequences.size());
 
   for (std::uint32_t i = 0; i < num_seqs; ++i) {
     rank.emplace_back(i);
@@ -108,7 +108,7 @@ bool CUDABatchProcessor::AddWindow(std::shared_ptr<Window> window) {
 
   std::stable_sort(rank.begin() + 1, rank.end(),
       [&] (std::uint32_t lhs, std::uint32_t rhs) {
-        return window->positions_[lhs].first < window->positions_[rhs].first;
+        return window->positions[lhs].first < window->positions[rhs].first;
       });
 
   // Start from index 1 since first sequence has already been added as backbone.
@@ -116,8 +116,8 @@ bool CUDABatchProcessor::AddWindow(std::shared_ptr<Window> window) {
   std::uint32_t skipped_seq = 0;
   for (std::uint32_t j = 1; j < num_seqs; j++) {
     std::uint32_t i = rank.at(j);
-    seq = window->sequences_.at(i);
-    qualities = window->qualities_.at(i);
+    seq = window->sequences.at(i);
+    qualities = window->qualities.at(i);
     ConvertPhredQualityToWeights(
         qualities.first,
         qualities.second,
@@ -202,29 +202,22 @@ void CUDABatchProcessor::GetConsensus() {
 
   for (std::uint32_t i = 0; i < windows_.size(); i++) {
     auto window = windows_.at(i);
-    if (output_status.at(i) != StatusType::success) {
-      // leave the failure cases to CPU polisher
-      window_consensus_status_.emplace_back(false);
-    } else {
+    if (output_status.at(i) == StatusType::success) {
       // This is a special case borrowed from the CPU version.
-      // TODO: We still run this case through the GPU, but could take it out.
-      bool consensus_status = false;
-      if (window->sequences_.size() < 3) {
-        window->consensus_ = std::string(
-            window->sequences_.front().first,
-            window->sequences_.front().second);
-
-        // This status is borrowed from the CPU version which considers this
-        // a failed consensus. All other cases are true.
-        consensus_status = false;
+      // TODO(Nvidia): We still run this case through the GPU but could ommit it
+      if (window->sequences.size() < 3) {
+        window->consensus = std::string(
+            window->sequences.front().first,
+            window->sequences.front().second);
       } else {
-        window->consensus_ = consensuses[i];
-        if (window->type_ ==  WindowType::kTGS) {
+        window->consensus = consensuses[i];
+        window->status = true;
+        if (window->type ==  WindowType::kTGS) {
           std::uint32_t num_seqs_in_window = seqs_added_per_window_[i];
           std::uint32_t average_coverage = num_seqs_in_window / 2;
 
-          std::int32_t begin = 0, end =  window->consensus_.size() - 1;
-          for (; begin < static_cast<std::int32_t>(window->consensus_.size()); ++begin) {  // NOLINT
+          std::int32_t begin = 0, end = window->consensus.size() - 1;
+          for (; begin < static_cast<std::int32_t>(window->consensus.size()); ++begin) {  // NOLINT
             if (coverages[i][begin] >= average_coverage) {
               break;
             }
@@ -234,35 +227,24 @@ void CUDABatchProcessor::GetConsensus() {
               break;
             }
           }
-
-          if (begin >= end) {
-            std::cerr << "[CUDABatchProcessor] warning: "
-                      << "contig might be chimeric in window " << window->id_
-                      << std::endl;
-            consensus_status = false;
-          } else {
-            window->consensus_ =  window->consensus_.substr(
-                begin,
-                end - begin + 1);
-            consensus_status = true;
+          if (begin < end) {
+            window->consensus = window->consensus.substr(begin, end - begin + 1);  // NOLINT
           }
         }
       }
-      window_consensus_status_.emplace_back(consensus_status);
     }
   }
 }
 
-const std::vector<bool>& CUDABatchProcessor::GenerateConsensus() {
+void CUDABatchProcessor::GenerateConsensus() {
   // Generate consensus for all windows in the batch
   GeneratePOA();
   GetConsensus();
-  return window_consensus_status_;
+  return;
 }
 
 void CUDABatchProcessor::Reset() {
   windows_.clear();
-  window_consensus_status_.clear();
   seqs_added_per_window_.clear();
   cudapoa_batch_->reset();
 }

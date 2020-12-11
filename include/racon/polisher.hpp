@@ -1,10 +1,7 @@
-/*!
- * @file polisher.hpp
- *
- * @brief Polisher class header file
- */
+// Copyright (c) 2020 Robert Vaser
 
-#pragma once
+#ifndef RACON_POLISHER_HPP_
+#define RACON_POLISHER_HPP_
 
 #include <cstdint>
 #include <memory>
@@ -17,8 +14,8 @@
 
 namespace racon {
 
-class Overlap;
-class Window;
+struct Overlap;
+struct Window;
 
 class Polisher {
  public:
@@ -44,11 +41,9 @@ class Polisher {
       std::uint32_t cudaaligner_batches = 0,
       std::uint32_t cuda_aligner_band_width = 0);
 
-  virtual void Initialize(
-      const std::vector<std::unique_ptr<biosoup::Sequence>>& targets,
-      const std::vector<std::unique_ptr<biosoup::Sequence>>& sequences);
-
   virtual std::vector<std::unique_ptr<biosoup::Sequence>> Polish(
+      const std::vector<std::unique_ptr<biosoup::Sequence>>& targets,
+      const std::vector<std::unique_ptr<biosoup::Sequence>>& sequences,
       bool drop_unpolished_sequences);
 
  protected:
@@ -62,16 +57,25 @@ class Polisher {
       std::int8_t gap,
       std::shared_ptr<thread_pool::ThreadPool> thread_pool);
 
-  virtual void FindBreakPoints(
-      const std::vector<std::unique_ptr<Overlap>>& overlaps,
+  virtual void AllocateMemory(std::size_t /* step */) { /* dummy */ }
+
+  virtual std::vector<Overlap> MapSequences(  // minimizers
       const std::vector<std::unique_ptr<biosoup::Sequence>>& targets,
       const std::vector<std::unique_ptr<biosoup::Sequence>>& sequences);
+
+  virtual void FindIntervals(  // global alignment
+      const std::vector<std::unique_ptr<biosoup::Sequence>>& targets,
+      const std::vector<std::unique_ptr<biosoup::Sequence>>& sequences,
+      std::vector<Overlap>* overlaps);
+
+  virtual void GenerateConsensus();  // partial order alignment
 
   double q_;
   double e_;
   std::uint32_t w_;
   bool trim_;
   std::shared_ptr<thread_pool::ThreadPool> thread_pool_;
+  std::uint32_t mean_overlap_len_;
   std::vector<std::unique_ptr<biosoup::Sequence>> headers_;
   std::string dummy_quality_;
   std::vector<std::shared_ptr<Window>> windows_;
@@ -79,3 +83,5 @@ class Polisher {
 };
 
 }  // namespace racon
+
+#endif  // RACON_POLISHER_HPP_

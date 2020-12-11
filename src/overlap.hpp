@@ -1,50 +1,49 @@
-/*!
- * @file overlap.hpp
- *
- * @brief Overlap class header file
- */
+// Copyright (c) 2020 Robert Vaser
 
-#pragma once
+#ifndef RACON_OVERLAP_HPP_
+#define RACON_OVERLAP_HPP_
 
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <vector>
 #include <string>
 #include <utility>
 
+#include "biosoup/overlap.hpp"
 #include "biosoup/sequence.hpp"
 
 namespace racon {
 
-struct Overlap {
+struct Overlap: public biosoup::Overlap {
  public:
-  Overlap(
-      std::uint32_t q_id, std::uint32_t q_begin, std::uint32_t q_end,
-      std::uint32_t t_id, std::uint32_t t_begin, std::uint32_t t_end,
-      std::uint32_t strand);
+  Overlap() = default;
 
-  std::uint32_t Length() const;
+  explicit Overlap(const biosoup::Overlap& other);
+  Overlap& operator=(const biosoup::Overlap& other);
+
+  Overlap(const Overlap&) = default;
+  Overlap& operator=(const Overlap&) = default;
+
+  Overlap(Overlap&&) = default;
+  Overlap& operator=(Overlap&&) = default;
+
+  ~Overlap() = default;
+
+  std::uint32_t length() const {
+    return std::max(lhs_end - lhs_begin, rhs_end - rhs_begin);
+  }
 
   void Align(
-      const char* q, std::uint32_t q_length,
-      const char* t, std::uint32_t t_length);
-
-  void FindBreakPoints(
-      const std::vector<std::unique_ptr<biosoup::Sequence>>& targets,
       const std::vector<std::unique_ptr<biosoup::Sequence>>& sequences,
-      std::uint32_t w);
+      const std::vector<std::unique_ptr<biosoup::Sequence>>& targets);
 
-  void FindBreakPoints(std::uint32_t w);
+  // find window points from cigar string
+  void FindIntervals(std::uint32_t w);
 
-  std::uint32_t q_id;
-  std::uint32_t q_begin;
-  std::uint32_t q_end;
-  std::uint32_t t_id;
-  std::uint32_t t_begin;
-  std::uint32_t t_end;
-  std::uint32_t strand;
-  std::string cigar;
-  std::vector<std::pair<std::uint32_t, std::uint32_t>> break_points;
+  std::vector<std::pair<std::uint32_t, std::uint32_t>> intervals;
 };
 
 }  // namespace racon
+
+#endif  // RACON_OVERLAP_HPP_

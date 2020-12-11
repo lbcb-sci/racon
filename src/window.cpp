@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Robert Vaser
+// Copyright (c) 2020 Robert Vaser
 
 #include <algorithm>
 #include <stdexcept>
@@ -15,13 +15,14 @@ Window::Window(
     WindowType type,
     const char* backbone, std::uint32_t backbone_len,
     const char* quality, uint32_t quality_len)
-    : id_(id),
-      rank_(rank),
-      type_(type),
-      consensus_(),
-      sequences_(1, std::make_pair(backbone, backbone_len)),
-      qualities_(1, std::make_pair(quality, quality_len)),
-      positions_(1, std::make_pair(0, 0)) {
+    : id(id),
+      rank(rank),
+      type(type),
+      status(false),
+      consensus(),
+      sequences(1, std::make_pair(backbone, backbone_len)),
+      qualities(1, std::make_pair(quality, quality_len)),
+      positions(1, std::make_pair(0, 0)) {
 }
 
 void Window::AddLayer(
@@ -34,85 +35,87 @@ void Window::AddLayer(
         "[racon::Window::AddLayer] error: unequal quality size");
   }
   if (begin >= end ||
-      begin > sequences_.front().second ||
-      end > sequences_.front().second) {
+      begin > sequences.front().second ||
+      end > sequences.front().second) {
     throw std::invalid_argument(
         "[racon::Window::AddLayer] error: invalid positions");
   }
 
-  sequences_.emplace_back(sequence, sequence_len);
-  qualities_.emplace_back(quality, quality_len);
-  positions_.emplace_back(begin, end);
+  sequences.emplace_back(sequence, sequence_len);
+  qualities.emplace_back(quality, quality_len);
+  positions.emplace_back(begin, end);
 }
 
-bool Window::GenerateConsensus(
+void Window::GenerateConsensus(
     std::shared_ptr<spoa::AlignmentEngine> alignment_engine,
     bool trim) {
-  if (sequences_.size() < 3) {
-    consensus_ = std::string(
-        sequences_.front().first, sequences_.front().second);
-    return false;
+  if (!consensus.empty()) {
+    return;
+  }
+  if (sequences.size() < 3) {
+    consensus = std::string(sequences.front().first, sequences.front().second);
+    return;
   }
 
   auto graph = spoa::Graph{};
   graph.AddAlignment(
       spoa::Alignment(),
-      sequences_.front().first, sequences_.front().second,
-      qualities_.front().first, qualities_.front().second);
+      sequences.front().first, sequences.front().second,
+      qualities.front().first, qualities.front().second);
 
   std::vector<std::uint32_t> rank;
-  rank.reserve(sequences_.size());
-  for (std::uint32_t i = 0; i < sequences_.size(); ++i) {
+  rank.reserve(sequences.size());
+  for (std::uint32_t i = 0; i < sequences.size(); ++i) {
     rank.emplace_back(i);
   }
 
   std::stable_sort(rank.begin() + 1, rank.end(),
       [&] (std::uint32_t lhs, std::uint32_t rhs) {
-        return positions_[lhs].first < positions_[rhs].first;
+        return positions[lhs].first < positions[rhs].first;
       });
 
-  std::uint32_t offset = 0.01 * sequences_.front().second;
-  for (std::uint32_t j = 1; j < sequences_.size(); ++j) {
+  std::uint32_t offset = 0.01 * sequences.front().second;
+  for (std::uint32_t j = 1; j < sequences.size(); ++j) {
     std::uint32_t i = rank[j];
 
     spoa::Alignment alignment;
-    if (positions_[i].first < offset &&
-        positions_[i].second > sequences_.front().second - offset) {
+    if (positions[i].first < offset &&
+        positions[i].second > sequences.front().second - offset) {
       alignment = alignment_engine->Align(
-          sequences_[i].first, sequences_[i].second,
+          sequences[i].first, sequences[i].second,
           graph);
     } else {
       std::vector<const spoa::Graph::Node*> mapping;
       auto subgraph = graph.Subgraph(
-          positions_[i].first,
-          positions_[i].second,
+          positions[i].first,
+          positions[i].second,
           &mapping);
       alignment = alignment_engine->Align(
-          sequences_[i].first, sequences_[i].second,
+          sequences[i].first, sequences[i].second,
           subgraph);
       subgraph.UpdateAlignment(mapping, &alignment);
     }
 
-    if (qualities_[i].first == nullptr) {
+    if (qualities[i].first == nullptr) {
       graph.AddAlignment(
           alignment,
-          sequences_[i].first, sequences_[i].second);
+          sequences[i].first, sequences[i].second);
     } else {
       graph.AddAlignment(
         alignment,
-        sequences_[i].first, sequences_[i].second,
-        qualities_[i].first, qualities_[i].second);
+        sequences[i].first, sequences[i].second,
+        qualities[i].first, qualities[i].second);
     }
   }
 
   std::vector<std::uint32_t> coverages;
-  consensus_ = graph.GenerateConsensus(&coverages);
+  consensus = graph.GenerateConsensus(&coverages);
 
-  if (type_ == WindowType::kTGS && trim) {
-    std::uint32_t average_coverage = (sequences_.size() - 1) / 2;
+  if (type == WindowType::kTGS && trim) {
+    std::uint32_t average_coverage = (sequences.size() - 1) / 2;
 
-    std::int32_t begin = 0, end = consensus_.size() - 1;
-    for (; begin < static_cast<std::int32_t>(consensus_.size()); ++begin) {
+    std::int32_t begin = 0, end = consensus.size() - 1;
+    for (; begin < static_cast<std::int32_t>(consensus.size()); ++begin) {
       if (coverages[begin] >= average_coverage) {
         break;
       }
@@ -124,11 +127,12 @@ bool Window::GenerateConsensus(
     }
 
     if (begin < end) {
-      consensus_ = consensus_.substr(begin, end - begin + 1);
+      consensus = consensus.substr(begin, end - begin + 1);
     }
   }
 
-  return true;
+  status = true;
+  return;
 }
 
 }  // namespace racon

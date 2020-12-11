@@ -94,8 +94,7 @@ TEST_F(RaconPolisherTest, WindowLengthError) {
 TEST_F(RaconPolisherTest, ConsensusWithQualities) {
   Setup("sample_layout.fasta.gz", "sample_reads.fastq.gz", 10, 0.3, 500, 3, -5, -4);  // NOLINT
 
-  polisher->Initialize(targets, sequences);
-  auto polished = polisher->Polish(true);
+  auto polished = polisher->Polish(targets, sequences, true);
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
@@ -105,8 +104,7 @@ TEST_F(RaconPolisherTest, ConsensusWithQualities) {
 TEST_F(RaconPolisherTest, ConsensusWithoutQualities) {
   Setup("sample_layout.fasta.gz", "sample_reads.fasta.gz", 10, 0.3, 500, 3, -5, -4);  // NOLINT
 
-  polisher->Initialize(targets, sequences);
-  auto polished = polisher->Polish(true);
+  auto polished = polisher->Polish(targets, sequences, true);
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
@@ -116,8 +114,7 @@ TEST_F(RaconPolisherTest, ConsensusWithoutQualities) {
 TEST_F(RaconPolisherTest, ConsensusWithQualitiesLargerWindow) {
   Setup("sample_layout.fasta.gz", "sample_reads.fastq.gz", 10, 0.3, 1000, 3, -5, -4);  // NOLINT
 
-  polisher->Initialize(targets, sequences);
-  auto polished = polisher->Polish(true);
+  auto polished = polisher->Polish(targets, sequences, true);
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
@@ -127,8 +124,7 @@ TEST_F(RaconPolisherTest, ConsensusWithQualitiesLargerWindow) {
 TEST_F(RaconPolisherTest, ConsensusWithQualitiesEditDistance) {
   Setup("sample_layout.fasta.gz", "sample_reads.fastq.gz", 10, 0.3, 500, 1, -1, -1);  // NOLINT
 
-  polisher->Initialize(targets, sequences);
-  auto polished = polisher->Polish(true);
+  auto polished = polisher->Polish(targets, sequences, true);
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
@@ -139,8 +135,7 @@ TEST_F(RaconPolisherTest, ConsensusWithQualitiesEditDistance) {
 TEST_F(RaconPolisherTest, ConsensusWithQualitiesCUDAPoa) {
   Setup("sample_layout.fasta.gz", "sample_reads.fastq.gz", 10, 0.3, 500, 3, -5, -4, 1);  // NOLINT
 
-  polisher->Initialize(targets, sequences);
-  auto polished = polisher->Polish(true);
+  auto polished = polisher->Polish(targets, sequences, true);
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
@@ -148,11 +143,10 @@ TEST_F(RaconPolisherTest, ConsensusWithQualitiesCUDAPoa) {
   EXPECT_EQ(1310, EditDistance(polished.front()->data, reference->data));
 }
 
-TEST_F(RaconPolisherTest, ConsensusWithQualitiesCUDAPoaAndAlignment) {
+TEST_F(RaconPolisherTest, ConsensusWithQualitiesCUDAPoaAndCUDAAlignment) {
   Setup("sample_layout.fasta.gz", "sample_reads.fastq.gz", 10, 0.3, 500, 3, -5, -4, 1, false, 1);  // NOLINT
 
-  polisher->Initialize(targets, sequences);
-  auto polished = polisher->Polish(true);
+  auto polished = polisher->Polish(targets, sequences, true);
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
@@ -163,8 +157,7 @@ TEST_F(RaconPolisherTest, ConsensusWithQualitiesCUDAPoaAndAlignment) {
 TEST_F(RaconPolisherTest, ConsensusWithoutQualitiesCUDAPoa) {
   Setup("sample_layout.fasta.gz", "sample_reads.fasta.gz", 10, 0.3, 500, 3, -5, -4, 1);  // NOLINT
 
-  polisher->Initialize(targets, sequences);
-  auto polished = polisher->Polish(true);
+  auto polished = polisher->Polish(targets, sequences, true);
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
@@ -172,11 +165,10 @@ TEST_F(RaconPolisherTest, ConsensusWithoutQualitiesCUDAPoa) {
   EXPECT_EQ(1577, EditDistance(polished.front()->data, reference->data));
 }
 
-TEST_F(RaconPolisherTest, ConsensusWithoutQualitiesCUDAPoaAndAlignment) {
+TEST_F(RaconPolisherTest, ConsensusWithoutQualitiesCUDAPoaAndCUDAAlignment) {
   Setup("sample_layout.fasta.gz", "sample_reads.fasta.gz", 10, 0.3, 500, 3, -5, -4, 1, false, 1);  // NOLINT
 
-  polisher->Initialize(targets, sequences);
-  auto polished = polisher->Polish(true);
+  auto polished = polisher->Polish(targets, sequences, true);
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
@@ -187,8 +179,7 @@ TEST_F(RaconPolisherTest, ConsensusWithoutQualitiesCUDAPoaAndAlignment) {
 TEST_F(RaconPolisherTest, ConsensusWithQualitiesLargerWindowCUDAPoa) {
   Setup("sample_layout.fasta.gz", "sample_reads.fastq.gz", 10, 0.3, 1000, 3, -5, -4, 1);  // NOLINT
 
-  polisher->Initialize(targets, sequences);
-  auto polished = polisher->Polish(true);
+  auto polished = polisher->Polish(targets, sequences, true);
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
@@ -196,11 +187,10 @@ TEST_F(RaconPolisherTest, ConsensusWithQualitiesLargerWindowCUDAPoa) {
   EXPECT_EQ(3403, EditDistance(polished.front()->data, reference->data));
 }
 
-TEST_F(RaconPolisherTest, ConsensusWithQualitiesLargerWindowCUDAPoaAndAlignment) {
+TEST_F(RaconPolisherTest, ConsensusWithQualitiesLargerWindowCUDAPoaAndCUDAAlignment) {  // NOLINT
   Setup("sample_layout.fasta.gz", "sample_reads.fastq.gz", 10, 0.3, 1000, 3, -5, -4, 1, false, 1);  // NOLINT
 
-  polisher->Initialize(targets, sequences);
-  auto polished = polisher->Polish(true);
+  auto polished = polisher->Polish(targets, sequences, true);
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
@@ -211,8 +201,7 @@ TEST_F(RaconPolisherTest, ConsensusWithQualitiesLargerWindowCUDAPoaAndAlignment)
 TEST_F(RaconPolisherTest, ConsensusWithQualitiesEditDistanceCUDAPoa) {
   Setup("sample_layout.fasta.gz", "sample_reads.fastq.gz", 10, 0.3, 500, 3, -1, -1, 1);  // NOLINT
 
-  polisher->Initialize(targets, sequences);
-  auto polished = polisher->Polish(true);
+  auto polished = polisher->Polish(targets, sequences, true);
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
@@ -220,11 +209,10 @@ TEST_F(RaconPolisherTest, ConsensusWithQualitiesEditDistanceCUDAPoa) {
   EXPECT_EQ(1499, EditDistance(polished.front()->data, reference->data));
 }
 
-TEST_F(RaconPolisherTest, ConsensusWithQualitiesEditDistanceCUDAPoaAndAlignment) {
+TEST_F(RaconPolisherTest, ConsensusWithQualitiesEditDistanceCUDAPoaAndCUDAAlignment) {  // NOLINT
   Setup("sample_layout.fasta.gz", "sample_reads.fastq.gz", 10, 0.3, 500, 3, -1, -1, 1, false, 1);  // NOLINT
 
-  polisher->Initialize(targets, sequences);
-  auto polished = polisher->Polish(true);
+  auto polished = polisher->Polish(targets, sequences, true);
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();

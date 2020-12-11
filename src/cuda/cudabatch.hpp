@@ -57,11 +57,8 @@ class CUDABatchProcessor {
   /**
    * @brief Runs the core computation to generate consensus for
    *        all windows in the batch.
-   *
-   * @return Vector of bool indicating succesful generation of consensus
-   *         for each window in the batch.
    */
-  const std::vector<bool>& GenerateConsensus();
+  void GenerateConsensus();
 
   /**
    * @brief Resets the state of the object, which includes
@@ -138,9 +135,6 @@ class CUDABatchProcessor {
   cudaStream_t stream_;
   // Windows belonging to the batch.
   std::vector<std::shared_ptr<Window>> windows_;
-
-  // Consensus generation status for each window.
-  std::vector<bool> window_consensus_status_;
 
   // Number of sequences actually added per window.
   std::vector<std::uint32_t> seqs_added_per_window_;

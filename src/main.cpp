@@ -1,3 +1,5 @@
+// Copyright (c) 2020 Robert Vaser
+
 #include <getopt.h>
 
 #include <cstdint>
@@ -272,9 +274,8 @@ int main(int argc, char** argv) {
     std::cerr << exception.what() << std::endl;
     return 1;
   }
-  polisher->Initialize(targets, sequences);
 
-  auto polished = polisher->Polish(drop_unpolished);
+  auto polished = polisher->Polish(targets, sequences, drop_unpolished);
 
   for (const auto& it : polished) {
     std::cout << ">" << it->name << std::endl

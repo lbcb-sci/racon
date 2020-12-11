@@ -22,9 +22,6 @@ class CUDAPolisher : public Polisher {
  public:
   ~CUDAPolisher();
 
-  std::vector<std::unique_ptr<biosoup::Sequence>> Polish(
-      bool drop_unpolished_sequences) override;
-
   friend Polisher;
 
  protected:
@@ -44,10 +41,14 @@ class CUDAPolisher : public Polisher {
   CUDAPolisher(const CUDAPolisher&) = delete;
   const CUDAPolisher& operator=(const CUDAPolisher&) = delete;
 
-  void FindBreakPoints(
-      const std::vector<std::unique_ptr<Overlap>>& overlaps,
+  void AllocateMemory(std::size_t step) override;
+
+  void FindIntervals(
       const std::vector<std::unique_ptr<biosoup::Sequence>>& targets,
-      const std::vector<std::unique_ptr<biosoup::Sequence>>& sequences) override;  // NOLINT
+      const std::vector<std::unique_ptr<biosoup::Sequence>>& sequences,
+      std::vector<Overlap>* overlaps) override;
+
+  void GenerateConsensus() override;
 
   static std::vector<std::uint32_t> CalculateBatchesPerGpu(
       std::uint32_t cudapoa_batches,
@@ -58,9 +59,6 @@ class CUDAPolisher : public Polisher {
 
   // Vector of aligner batches.
   std::vector<std::unique_ptr<CUDABatchAligner>> batch_aligners_;
-
-  // Vector of bool indicating consensus generation status for each window.
-  std::vector<bool> window_consensus_status_;
 
   // Number of batches for POA processing.
   std::uint32_t cudapoa_batches_;

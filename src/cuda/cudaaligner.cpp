@@ -54,10 +54,10 @@ bool CUDABatchAligner::AddOverlap(
     Overlap* overlap,
     const std::vector<std::unique_ptr<biosoup::Sequence>>& targets,
     const std::vector<std::unique_ptr<biosoup::Sequence>>& sequences) {
-  const char* q = &(sequences[overlap->q_id]->data[overlap->q_begin]);
-  int32_t q_len = overlap->q_end - overlap->q_begin;
-  const char* t = &(targets[overlap->t_id]->data[overlap->t_begin]);
-  int32_t t_len = overlap->t_end - overlap->t_begin;
+  const char* q = &(sequences[overlap->lhs_id]->data[overlap->lhs_begin]);
+  std::int32_t q_len = overlap->lhs_end - overlap->lhs_begin;
+  const char* t = &(targets[overlap->rhs_id]->data[overlap->rhs_begin]);
+  std::int32_t t_len = overlap->rhs_end - overlap->rhs_begin;
 
   // NOTE: The cudaaligner API for adding alignments is the opposite of edlib.
   // Hence, what is treated as target in edlib is query in cudaaligner and
@@ -91,7 +91,7 @@ void CUDABatchAligner::GenerateCigarStrings() {
         "Number of alignments doesn't match number of overlaps in cudaaligner");
   }
   for (std::size_t a = 0; a < alignments.size(); a++) {
-    overlaps_[a]->cigar = alignments[a]->convert_to_cigar();
+    overlaps_[a]->alignment = alignments[a]->convert_to_cigar();
   }
 }
 
