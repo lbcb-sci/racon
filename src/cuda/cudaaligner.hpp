@@ -14,7 +14,7 @@
 #include <utility>
 #include <vector>
 
-#include "biosoup/sequence.hpp"
+#include "biosoup/nucleic_acid.hpp"
 #include "claraparabricks/genomeworks/cudaaligner/cudaaligner.hpp"
 #include "claraparabricks/genomeworks/cudaaligner/aligner.hpp"
 #include "claraparabricks/genomeworks/cudaaligner/alignment.hpp"
@@ -44,8 +44,8 @@ class CUDABatchAligner {
    */
   virtual bool AddOverlap(
       Overlap* overlap,
-      const std::vector<std::unique_ptr<biosoup::Sequence>>& targets,
-      const std::vector<std::unique_ptr<biosoup::Sequence>>& sequences);
+      const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& targets,
+      const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& sequences);
 
   /**
    * @brief Checks if batch has any overlaps to process.

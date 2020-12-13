@@ -20,24 +20,22 @@
 namespace racon {
 
 Polisher::Polisher(
-    double quality_threshold,
+    std::shared_ptr<thread_pool::ThreadPool> thread_pool,
+    std::uint64_t batch_size,
     double error_threshold,
     std::uint32_t window_len,
     bool trim_consensus,
     std::int8_t match,
     std::int8_t mismatch,
-    std::int8_t gap,
-    std::shared_ptr<thread_pool::ThreadPool> thread_pool)
-    : q_(quality_threshold),
-      e_(error_threshold),
+    std::int8_t gap)
+    : e_(error_threshold),
       w_(window_len),
       trim_(trim_consensus),
       thread_pool_(thread_pool ?
           thread_pool :
           std::make_shared<thread_pool::ThreadPool>(1)),
+      batch_size_(batch_size),
       mean_overlap_len_(0),
-      headers_(),
-      dummy_quality_(w_, '!'),
       windows_(),
       alignment_engines_() {
   for (std::uint32_t i = 0; i < thread_pool->num_threads(); ++i) {
@@ -51,14 +49,14 @@ Polisher::Polisher(
 }
 
 std::unique_ptr<Polisher> Polisher::Create(
-    double quality_threshold,
+    std::shared_ptr<thread_pool::ThreadPool> thread_pool,
+    std::uint64_t batch_size,
     double error_threshold,
     std::uint32_t window_len,
     bool trim_consensus,
     std::int8_t match,
     std::int8_t mismatch,
     std::int8_t gap,
-    std::shared_ptr<thread_pool::ThreadPool> thread_pool,
     std::uint32_t cudapoa_batches,
     bool cuda_banded_alignment,
     std::uint32_t cudaaligner_batches,
@@ -77,14 +75,14 @@ std::unique_ptr<Polisher> Polisher::Create(
 #ifdef CUDA_ENABLED
     // If CUDA is enabled, return an instance of the CUDAPolisher object.
     return std::unique_ptr<Polisher>(new CUDAPolisher(
-        quality_threshold,
+        thread_pool,
+        batch_size,
         error_threshold,
         window_len,
         trim_consensus,
         match,
         mismatch,
         gap,
-        thread_pool,
         cudapoa_batches,
         cuda_banded_alignment,
         cudaaligner_batches,
@@ -97,32 +95,24 @@ std::unique_ptr<Polisher> Polisher::Create(
     (void) cuda_banded_alignment;
     (void) cuda_aligner_band_width;
     return std::unique_ptr<Polisher>(new Polisher(
-        quality_threshold,
+        thread_pool,
+        batch_size,
         error_threshold,
         window_len,
         trim_consensus,
         match,
         mismatch,
-        gap,
-        thread_pool));
+        gap));
   }
 }
 
-std::vector<std::unique_ptr<biosoup::Sequence>> Polisher::Polish(
-    const std::vector<std::unique_ptr<biosoup::Sequence>>& targets,
-    const std::vector<std::unique_ptr<biosoup::Sequence>>& sequences,
+std::vector<std::unique_ptr<biosoup::NucleicAcid>> Polisher::Polish(
+    const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& targets,
+    const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& sequences,
     bool drop_unpolished) {
 
-  headers_.clear();
-  windows_.clear();
-
   if (targets.empty() || sequences.empty()) {
-    return std::vector<std::unique_ptr<biosoup::Sequence>>{};
-  }
-
-  for (const auto& it : targets) {
-    headers_.emplace_back(new biosoup::Sequence());
-    headers_.back()->name = it->name;
+    return std::vector<std::unique_ptr<biosoup::NucleicAcid>>{};
   }
 
   biosoup::Timer timer{};
@@ -130,15 +120,19 @@ std::vector<std::unique_ptr<biosoup::Sequence>> Polisher::Polish(
 
   AllocateMemory(0);
   auto overlaps = MapSequences(targets, sequences);
+  DeallocateMemory(0);
 
-  timer.Stop();
+  std::cerr << "[racon::Polisher::Polish] found " << overlaps.size() << " overlaps "  // NOLINT
+            << std::fixed << timer.Stop() << "s"
+            << std::endl;
+
   timer.Start();
 
   for (std::uint32_t i = 0; i < overlaps.size(); ++i) {
     if (overlaps[i].strand == 0) {
       sequences[overlaps[i].lhs_id]->ReverseAndComplement();
       auto lhs_begin = overlaps[i].lhs_begin;
-      auto lhs_len = sequences[overlaps[i].lhs_id]->data.size();
+      auto lhs_len = sequences[overlaps[i].lhs_id]->inflated_len;
       overlaps[i].lhs_begin = lhs_len - overlaps[i].lhs_end;
       overlaps[i].lhs_end = lhs_len - lhs_begin;
     }
@@ -152,8 +146,70 @@ std::vector<std::unique_ptr<biosoup::Sequence>> Polisher::Polish(
 
   AllocateMemory(1);
   FindIntervals(targets, sequences, &overlaps);
+  DeallocateMemory(1);
 
   timer.Stop();
+  timer.Start();
+
+  std::vector<std::uint64_t> target_to_window(targets.size() + 1, 0);
+  for (std::uint64_t i = 0; i < targets.size(); ++i) {
+    for (std::uint32_t j = 0; j < targets[i]->inflated_len; j += w_) {
+      windows_.emplace_back(std::make_shared<Window>(
+          i,
+          windows_.size() - target_to_window[i],
+          WindowType::kTGS));
+
+      std::uint32_t backbone_len =
+          std::min(w_, static_cast<std::uint32_t>(targets[i]->inflated_len) - j);  // NOLINT
+
+      windows_.back()->AddLayer(i, j, j + backbone_len, 0, backbone_len);
+    }
+    target_to_window[i + 1] = windows_.size();
+  }
+
+  std::vector<std::uint32_t> num_reads(targets.size(), 0);
+  for (std::uint64_t i = 0; i < overlaps.size(); ++i) {
+    ++num_reads[overlaps[i].rhs_id];
+    for (std::uint32_t j = 0; j < overlaps[i].lhs_intervals.size(); ++j) {
+      if (overlaps[i].lhs_intervals[j].second -
+          overlaps[i].lhs_intervals[j].first < .02 * w_) {
+        continue;
+      }
+      // TODO(rvaser): devise a filtering option other than average quality
+
+      std::uint32_t rank = overlaps[i].rhs_intervals[j].first / w_;
+
+      windows_[target_to_window[overlaps[i].rhs_id] + rank]->AddLayer(
+          overlaps[i].lhs_id,
+          overlaps[i].lhs_intervals[j].first,
+          overlaps[i].lhs_intervals[j].second,
+          overlaps[i].rhs_intervals[j].first - rank * w_,
+          overlaps[i].rhs_intervals[j].second - rank * w_);
+    }
+
+    std::vector<std::pair<std::uint32_t, std::uint32_t>>{}.swap(overlaps[i].lhs_intervals);  // NOLINT
+    std::vector<std::pair<std::uint32_t, std::uint32_t>>{}.swap(overlaps[i].rhs_intervals);  // NOLINT
+  }
+  std::vector<racon::Overlap>{}.swap(overlaps);
+
+  std::uint64_t windows_per_batch = 0;
+  {
+    std::uint64_t targets_size = 0;
+    for (const auto& it : targets) {
+      targets_size += it->inflated_len;
+    }
+    std::uint64_t sequences_size = 0;
+    for (const auto& it : sequences) {
+      sequences_size += it->inflated_len;
+    }
+    windows_per_batch = batch_size_ / (w_ * sequences_size / targets_size);
+  }
+
+  std::cerr << "[racon::Polisher::Polish] prepared " << windows_.size()
+            << " window placeholders "
+            << std::fixed << timer.Stop() << "s"
+            << std::endl;
+
   timer.Start();
 
   AllocateMemory(2);
@@ -161,85 +217,42 @@ std::vector<std::unique_ptr<biosoup::Sequence>> Polisher::Polish(
   timer.Stop();
   timer.Start();
 
-  std::vector<std::uint64_t> id_to_window(targets.size() + 1, 0);
-  for (std::uint64_t i = 0; i < targets.size(); ++i) {
-    std::uint32_t k = 0;
-    for (std::uint32_t j = 0; j < targets[i]->data.size(); j += w_, ++k) {
-      std::uint32_t length = std::min(
-          static_cast<std::uint32_t>(targets[i]->data.size()) - j,
-          w_);
+  std::vector<std::future<void>> futures;
+  for (std::uint64_t i = 0, j = 0; i < windows_.size(); ++i, ++j) {
+    futures.emplace_back(thread_pool_->Submit(
+        [&] (std::uint64_t i) -> void {
+          windows_[i]->Fill(targets, sequences);
+        },
+        i));
 
-      windows_.emplace_back(std::make_shared<Window>(
-          i,
-          k,
-          WindowType::kTGS,
-          &(targets[i]->data[j]),
-          length,
-          targets[i]->quality.empty() ?
-              &(dummy_quality_[0]) :
-              &(targets[i]->quality[j]),
-          length));
+    if (i != windows_.size() - 1 && j < windows_per_batch) {
+      continue;
     }
-    id_to_window[i + 1] = id_to_window[i] + k;
-  }
-  for (std::uint64_t i = 0; i < overlaps.size(); ++i) {
-    ++headers_[overlaps[i].rhs_id]->id;
+    j = 0;
 
-    const auto& sequence = sequences[overlaps[i].lhs_id];
-    const auto& intervals = overlaps[i].intervals;
-
-    for (std::uint32_t j = 0; j < intervals.size(); j += 2) {
-      if (intervals[j + 1].second - intervals[j].second < 0.02 * w_) {
-        continue;
-      }
-
-      if (!sequence->quality.empty()) {
-        double avg_q = 0;
-        for (std::uint32_t k = intervals[j].second; k < intervals[j + 1].second; ++k) {  // NOLINT
-          avg_q += static_cast<std::uint32_t>(sequence->quality[k]) - 33;
-        }
-        avg_q /= intervals[j + 1].second - intervals[j].second;
-
-        if (avg_q < q_) {
-          continue;
-        }
-      }
-
-      std::uint64_t window_id =
-          id_to_window[overlaps[i].rhs_id] + intervals[j].first / w_;
-      std::uint32_t window_start = (intervals[j].first / w_) * w_;
-
-      const char* data = &(sequence->data[intervals[j].second]);
-      std::uint32_t data_length = intervals[j + 1].second - intervals[j].second;
-
-      const char* quality = sequence->quality.empty() ?
-          nullptr :
-          &(sequence->quality[intervals[j].second]);
-      std::uint32_t quality_length = quality == nullptr ? 0 : data_length;
-
-      windows_[window_id]->AddLayer(
-          data, data_length,
-          quality, quality_length,
-          intervals[j].first - window_start,
-          intervals[j + 1].first - window_start - 1);
+    for (const auto& it : futures) {
+      it.wait();
     }
+    futures.clear();
+
+    GenerateConsensus();
+
+    timer.Stop();
+    timer.Start();
   }
 
-  std::cerr << "[racon::Polisher::Polish] transformed data into windows "
-            << std::fixed << timer.Stop() << "s"
-            << std::endl;
+  DeallocateMemory(2);
 
+  timer.Stop();
   timer.Start();
-
-  GenerateConsensus();
 
   std::string polished_data = "";
   std::uint32_t num_polished_windows = 0;
 
-  biosoup::Sequence::num_objects = 0;
-  std::vector<std::unique_ptr<biosoup::Sequence>> dst;
+  biosoup::NucleicAcid::num_objects = 0;
+  std::vector<std::unique_ptr<biosoup::NucleicAcid>> dst;
 
-  for (std::uint64_t i = 0; i < windows_.size(); ++i) {
+  for (std::uint64_t i = 0, j = 0; i < windows_.size(); ++i) {
     num_polished_windows += windows_[i]->status;
     polished_data += windows_[i]->consensus;
 
@@ -249,11 +262,12 @@ std::vector<std::unique_ptr<biosoup::Sequence>> Polisher::Polish(
 
       if (!drop_unpolished || polished_ratio > 0) {
         std::string tags = " LN:i:" + std::to_string(polished_data.size());
-        tags += " RC:i:" + std::to_string(headers_[windows_[i]->id]->id);
+        tags += " RC:i:" + std::to_string(num_reads[j]);
         tags += " XC:f:" + std::to_string(polished_ratio);
-        dst.emplace_back(new biosoup::Sequence(
-            headers_[windows_[i]->id]->name + tags,
+        dst.emplace_back(new biosoup::NucleicAcid(
+            targets[j]->name + tags,
             polished_data));
+        ++j;
       }
 
       num_polished_windows = 0;
@@ -261,6 +275,7 @@ std::vector<std::unique_ptr<biosoup::Sequence>> Polisher::Polish(
     }
     windows_[i].reset();
   }
+  windows_.clear();
 
   timer.Stop();
 
@@ -272,8 +287,8 @@ std::vector<std::unique_ptr<biosoup::Sequence>> Polisher::Polish(
 }
 
 std::vector<Overlap> Polisher::MapSequences(
-    const std::vector<std::unique_ptr<biosoup::Sequence>>& targets,
-    const std::vector<std::unique_ptr<biosoup::Sequence>>& sequences) {
+    const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& targets,
+    const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& sequences) {
   // biosoup::Overlap helper functions
   auto overlap_length = [] (const biosoup::Overlap& o) -> std::uint32_t {
     return std::max(o.rhs_end - o.rhs_begin, o.lhs_end - o.lhs_begin);
@@ -284,13 +299,13 @@ std::vector<Overlap> Polisher::MapSequences(
   };
   // biosoup::Overlap helper functions
 
-  auto minimizer_engine = ram::MinimizerEngine(15, 5, thread_pool_);
+  auto minimizer_engine = ram::MinimizerEngine(thread_pool_);
   std::vector<Overlap> overlaps(sequences.size());
 
   biosoup::Timer timer{};
 
   for (std::uint32_t i = 0, j = 0, bytes = 0; i < targets.size(); ++i) {
-    bytes += targets[i]->data.size();
+    bytes += targets[i]->inflated_len;
     if (i != targets.size() - 1 && bytes < (1U << 30)) {
       continue;
     }
@@ -319,7 +334,7 @@ std::vector<Overlap> Polisher::MapSequences(
           },
           k));
 
-      bytes += sequences[k]->data.size();
+      bytes += sequences[k]->inflated_len;
       if (k != sequences.size() - 1 && bytes < (1U << 30)) {
         continue;
       }
@@ -366,15 +381,15 @@ std::vector<Overlap> Polisher::MapSequences(
 }
 
 void Polisher::FindIntervals(
-    const std::vector<std::unique_ptr<biosoup::Sequence>>& targets,
-    const std::vector<std::unique_ptr<biosoup::Sequence>>& sequences,
+    const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& targets,
+    const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& sequences,
     std::vector<Overlap>* overlaps) {
   biosoup::Timer timer{};
   timer.Start();
 
   std::vector<std::future<void>> futures;
   for (std::uint64_t i = 0; i < overlaps->size(); ++i) {
-    if (!(*overlaps)[i].intervals.empty()) {
+    if (!(*overlaps)[i].lhs_intervals.empty()) {
       continue;
     }
     futures.emplace_back(thread_pool_->Submit(
@@ -409,7 +424,7 @@ void Polisher::GenerateConsensus() {
 
   std::vector<std::future<void>> futures;
   for (std::uint64_t i = 0; i < windows_.size(); ++i) {
-    if (!windows_[i]->consensus.empty()) {
+    if (!windows_[i]->consensus.empty() || windows_[i]->sequences.empty()) {
       continue;
     }
     futures.emplace_back(thread_pool_->Submit(

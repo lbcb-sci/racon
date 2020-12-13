@@ -113,14 +113,6 @@ class CUDABatchProcessor {
    */
   void GetConsensus();
 
-  /*
-   * @brief Convert PHRED quality scores to weights.
-   *
-   */
-  void ConvertPhredQualityToWeights(
-      const char* qual, std::uint32_t qual_len,
-      std::vector<std::int8_t>* weights);
-
  protected:
   // Static batch count used to generate batch IDs.
   static std::atomic<std::uint32_t> batches;

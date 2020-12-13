@@ -13,7 +13,7 @@
 
 #include "racon/polisher.hpp"
 
-std::atomic<std::uint32_t> biosoup::Sequence::num_objects{0};
+std::atomic<std::uint32_t> biosoup::NucleicAcid::num_objects{0};
 
 namespace {
 
@@ -23,9 +23,9 @@ static const std::int32_t CUDAALIGNER_INPUT_CODE = 10000;
 static const std::int32_t CUDAALIGNER_BAND_WIDTH_INPUT_CODE = 10001;
 
 static struct option options[] = {
+  {"batch-size", required_argument, nullptr, 'B'},
   {"include-unpolished", no_argument, nullptr, 'u'},
   {"window-length", required_argument, nullptr, 'w'},
-  {"quality-threshold", required_argument, nullptr, 'q'},
   {"error-threshold", required_argument, nullptr, 'e'},
   {"no-trimming", no_argument, nullptr, 'T'},
   {"match", required_argument, nullptr, 'm'},
@@ -43,7 +43,7 @@ static struct option options[] = {
   {nullptr, 0, nullptr, 0}
 };
 
-std::unique_ptr<bioparser::Parser<biosoup::Sequence>> CreateParser(
+std::unique_ptr<bioparser::Parser<biosoup::NucleicAcid>> CreateParser(
     const std::string& path) {
 
   auto is_suffix = [] (const std::string& src, const std::string& suffix) {
@@ -55,7 +55,7 @@ std::unique_ptr<bioparser::Parser<biosoup::Sequence>> CreateParser(
       is_suffix(path, ".fna")   || is_suffix(path, ".fna.gz") ||
       is_suffix(path, ".fa")    || is_suffix(path, ".fa.gz")) {
     try {
-      return bioparser::Parser<biosoup::Sequence>::Create<bioparser::FastaParser>(path);  // NOLINT
+      return bioparser::Parser<biosoup::NucleicAcid>::Create<bioparser::FastaParser>(path);  // NOLINT
     } catch (const std::invalid_argument& exception) {
       std::cerr << exception.what() << std::endl;
       return nullptr;
@@ -64,7 +64,7 @@ std::unique_ptr<bioparser::Parser<biosoup::Sequence>> CreateParser(
   if (is_suffix(path, ".fastq")    || is_suffix(path, ".fq") ||
       is_suffix(path, ".fastq.gz") || is_suffix(path, ".fq.gz")) {
     try {
-      return bioparser::Parser<biosoup::Sequence>::Create<bioparser::FastqParser>(path);  // NOLINT
+      return bioparser::Parser<biosoup::NucleicAcid>::Create<bioparser::FastqParser>(path);  // NOLINT
     } catch (const std::invalid_argument& exception) {
       std::cerr << exception.what() << std::endl;
       return nullptr;
@@ -87,11 +87,11 @@ void Help() {
       "    input file in FASTA/FASTQ format (can be compressed with gzip)\n"
       "\n"
       "  options:\n"
+      "    --batch-size <int>\n"
+      "      default: 2 ^ 36\n"
+      "      size in bytes for polishing memory consumption\n"
       "    -u, --include-unpolished\n"
       "      output unpolished target sequences\n"
-      "    -q, --quality-threshold <float>\n"
-      "      default: 10.0\n"
-      "      threshold for average base quality of windows used in POA\n"
       "    -e, --error-threshold <float>\n"
       "      default: 0.3\n"
       "      maximum allowed error rate used for filtering overlaps\n"
@@ -137,7 +137,8 @@ void Help() {
 int main(int argc, char** argv) {
   std::vector<std::string> input_paths;
 
-  double q = 10.0;
+  std::uint64_t batch_size = 1ULL << 36;
+
   double e = 0.3;
   std::uint32_t w = 500;
   bool trim = true;
@@ -154,7 +155,7 @@ int main(int argc, char** argv) {
   std::uint32_t cuda_aligner_band_width = 0;
   bool cuda_banded_alignment = false;
 
-  std::string optstring = "uq:e:w:m:n:g:t:h";
+  std::string optstring = "ue:w:m:n:g:t:h";
 #ifdef CUDA_ENABLED
   optstring += "c:b:";
 #endif
@@ -162,8 +163,8 @@ int main(int argc, char** argv) {
   int32_t argument;
   while ((argument = getopt_long(argc, argv, optstring.c_str(), options, nullptr)) != -1) {  // NOLINT
     switch (argument) {
+      case 'B': batch_size = atoll(optarg); break;
       case 'u': drop_unpolished = false; break;
-      case 'q': q = atof(optarg); break;
       case 'e': e = atof(optarg); break;
       case 'w': w = atoi(optarg); break;
       case 'T': trim = false; break;
@@ -222,7 +223,7 @@ int main(int argc, char** argv) {
   if (tparser == nullptr) {
     return 1;
   }
-  std::vector<std::unique_ptr<biosoup::Sequence>> targets;
+  std::vector<std::unique_ptr<biosoup::NucleicAcid>> targets;
   try {
     targets = tparser->Parse(-1);
   } catch (std::invalid_argument& exception) {
@@ -230,18 +231,18 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  std::cerr << "[racon::] loaded target sequences "
+  std::cerr << "[racon::] loaded " << targets.size() << " target sequences "
             << std::fixed << timer.Stop() << "s"
             << std::endl;
 
   timer.Start();
 
-  biosoup::Sequence::num_objects = 0;
+  biosoup::NucleicAcid::num_objects = 0;
   auto sparser = CreateParser(input_paths[1]);
   if (sparser == nullptr) {
     return 1;
   }
-  std::vector<std::unique_ptr<biosoup::Sequence>> sequences;
+  std::vector<std::unique_ptr<biosoup::NucleicAcid>> sequences;
   try {
     sequences = sparser->Parse(-1);
   } catch (std::invalid_argument& exception) {
@@ -249,23 +250,25 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  std::cerr << "[racon::] loaded sequences "
+  std::cerr << "[racon::] loaded " << sequences.size() << " sequences "
             << std::fixed << timer.Stop() << "s"
             << std::endl;
+
+  timer.Start();
 
   auto thread_pool = std::make_shared<thread_pool::ThreadPool>(num_threads);
 
   std::unique_ptr<racon::Polisher> polisher = nullptr;
   try {
     polisher = racon::Polisher::Create(
-        q,
+        thread_pool,
+        batch_size,
         e,
         w,
         trim,
         m,
         n,
         g,
-        thread_pool,
         cuda_poa_batches,
         cuda_banded_alignment,
         cuda_aligner_batches,
@@ -277,9 +280,11 @@ int main(int argc, char** argv) {
 
   auto polished = polisher->Polish(targets, sequences, drop_unpolished);
 
+  timer.Stop();
+
   for (const auto& it : polished) {
     std::cout << ">" << it->name << std::endl
-              << it->data << std::endl;
+              << it->Inflate() << std::endl;
   }
 
   std::cerr << "[racon::] "

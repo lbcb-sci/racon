@@ -4,6 +4,8 @@
  * @brief CUDA Polisher class source file
  */
 
+#include "cudapolisher.hpp"
+
 #include <cuda_profiler_api.h>
 
 #include <chrono>  // NOLINT
@@ -16,23 +18,21 @@
 #include "biosoup/timer.hpp"
 #include "claraparabricks/genomeworks/utils/cudautils.hpp"
 
-#include "cudapolisher.hpp"
-
 namespace racon {
 
 CUDAPolisher::CUDAPolisher(
-    double q,
+    std::shared_ptr<thread_pool::ThreadPool> thread_pool,
+    std::uint64_t batch_size,
     double e,
     std::uint32_t w,
     bool trim,
     std::int8_t m,
     std::int8_t n,
     std::int8_t g,
-    std::shared_ptr<thread_pool::ThreadPool> thread_pool,
     std::uint32_t cudapoa_batches, bool cuda_banded_alignment,
     std::uint32_t cudaaligner_batches,
     std::uint32_t cudaaligner_band_width)
-    : Polisher(q, e, w, trim, m, n, g, thread_pool),
+    : Polisher(thread_pool, batch_size, e, w, trim, m, n, g),
       cudapoa_batches_(cudapoa_batches),
       cudaaligner_batches_(cudaaligner_batches),
       gap_(g),
@@ -125,9 +125,19 @@ void CUDAPolisher::AllocateMemory(std::size_t step) {
   }
 }
 
+void CUDAPolisher::DeallocateMemory(std::size_t step) {
+  if (step == 0) {
+    /* dummy */
+  } else if (step == 1) {
+    batch_aligners_.clear();
+  } else if (step == 2) {
+    batch_processors_.clear();
+  }
+}
+
 void CUDAPolisher::FindIntervals(
-    const std::vector<std::unique_ptr<biosoup::Sequence>>& targets,
-    const std::vector<std::unique_ptr<biosoup::Sequence>>& sequences,
+    const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& targets,
+    const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& sequences,
     std::vector<Overlap>* overlaps) {
   if (cudaaligner_batches_ > 0) {
     biosoup::Timer timer{};
@@ -208,8 +218,6 @@ void CUDAPolisher::FindIntervals(
       it.wait();
     }
     std::cerr << std::endl;
-
-    batch_aligners_.clear();
   }
 
   // This call runs the breaking point detection code for all alignments.
@@ -230,34 +238,41 @@ void CUDAPolisher::GenerateConsensus() {
     std::uint32_t next_window_index = 0;
 
     // Lambda function for adding windows to batches
-    auto fill_next_batch = [&] (CUDABatchProcessor* batch) ->
-        std::pair<uint32_t, uint32_t> {
+    auto fill_next_batch = [&] (CUDABatchProcessor* batch) -> std::uint32_t {
       batch->Reset();
 
       // Use mutex to read the vector containing windows in a threadsafe manner
       std::lock_guard<std::mutex> guard(mutex_windows);
 
       // TODO(Nvidia): Reducing window size by 10 for debugging.
-      std::uint32_t initial_count = next_window_index;
-      std::uint32_t count = windows_.size();
-      while (next_window_index < count) {
-        if (batch->AddWindow(windows_.at(next_window_index))) {
-          next_window_index++;
-        } else {
-          break;
+      std::uint32_t count = 0;
+      while (next_window_index < windows_.size()) {
+        if (windows_[next_window_index]->consensus.empty() &&
+            windows_[next_window_index]->sequences.empty() == false) {
+          if (!batch->AddWindow(windows_.at(next_window_index))) {
+            break;
+          }
+          ++count;
         }
+        ++next_window_index;
       }
-
-      return {initial_count, next_window_index};
+      return count;
     };
 
+    std::uint32_t num_windows = 0;
+    for (const auto& it : windows_) {
+      if (it->consensus.empty() && !it->sequences.empty()) {
+        ++num_windows;
+      }
+    }
+
     std::mutex mutex_bar;
-    biosoup::ProgressBar bar{static_cast<std::uint32_t>(windows_.size()), 16};
+    biosoup::ProgressBar bar{static_cast<std::uint32_t>(num_windows), 16};
 
     // Lambda function for processing each batch
     auto process_batch = [&] (CUDABatchProcessor* batch) -> void {
       while (true) {
-        std::pair<std::uint32_t, std::uint32_t> range = fill_next_batch(batch);
+        std::uint32_t updates = fill_next_batch(batch);
         if (batch->HasWindows()) {
           // Launch workload
           batch->GenerateConsensus();
@@ -265,11 +280,10 @@ void CUDAPolisher::GenerateConsensus() {
           // progress bar
           {
             std::lock_guard<std::mutex> guard(mutex_bar);
-            auto updates = range.second - range.first;
             while (updates--) {
               if (++bar) {
                 std::cerr << "[racon::CUDAPolisher::Polish] called consensus for "  // NOLINT
-                          << bar.event_counter() << " / " << windows_.size() << " windows "  // NOLINT
+                          << bar.event_counter() << " / " << num_windows << " windows "  // NOLINT
                           << "[" << bar << "] "
                           << timer.Lap() << "s"
                           << "\r";
@@ -294,8 +308,6 @@ void CUDAPolisher::GenerateConsensus() {
       it.wait();
     }
     std::cerr << std::endl;
-
-    batch_processors_.clear();
   }
 
   // This call runs the generates consensuses for all windows. Any windows that

@@ -4,11 +4,11 @@
  * @brief CUDABatchAligner class source file
  */
 
+#include "cudaaligner.hpp"
+
 #include <iostream>
 
 #include "claraparabricks/genomeworks/utils/cudautils.hpp"
-
-#include "cudaaligner.hpp"
 
 namespace racon {
 
@@ -52,17 +52,19 @@ CUDABatchAligner::~CUDABatchAligner() {
 
 bool CUDABatchAligner::AddOverlap(
     Overlap* overlap,
-    const std::vector<std::unique_ptr<biosoup::Sequence>>& targets,
-    const std::vector<std::unique_ptr<biosoup::Sequence>>& sequences) {
-  const char* q = &(sequences[overlap->lhs_id]->data[overlap->lhs_begin]);
-  std::int32_t q_len = overlap->lhs_end - overlap->lhs_begin;
-  const char* t = &(targets[overlap->rhs_id]->data[overlap->rhs_begin]);
-  std::int32_t t_len = overlap->rhs_end - overlap->rhs_begin;
+    const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& targets,
+    const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& sequences) {
+  std::string q = sequences[overlap->lhs_id]->Inflate(
+      overlap->lhs_begin,
+      overlap->lhs_end - overlap->lhs_begin);
+  std::string t = targets[overlap->rhs_id]->Inflate(
+      overlap->rhs_begin,
+      overlap->rhs_end - overlap->rhs_begin);
 
   // NOTE: The cudaaligner API for adding alignments is the opposite of edlib.
   // Hence, what is treated as target in edlib is query in cudaaligner and
   // vice versa.
-  StatusType s = aligner_->add_alignment(t, t_len, q, q_len);
+  StatusType s = aligner_->add_alignment(t.c_str(), t.size(), q.c_str(), q.size());  // NOLINT
   if (s == StatusType::exceeded_max_alignments) {
     return false;
   } else if (s == StatusType::exceeded_max_alignment_difference ||

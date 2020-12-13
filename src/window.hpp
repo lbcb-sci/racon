@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 
+#include "biosoup/nucleic_acid.hpp"
 #include "spoa/alignment_engine.hpp"
 
 namespace racon {
@@ -20,12 +21,7 @@ enum class WindowType {
 
 struct Window {
  public:
-  Window(
-      std::uint64_t id,
-      std::uint32_t rank,
-      WindowType type,
-      const char* backbone, std::uint32_t backbone_len,
-      const char* quality, std::uint32_t quality_len);
+  Window(std::uint64_t id, std::uint32_t rank, WindowType type);
 
   Window(const Window&) = default;
   Window& operator=(const Window&) = default;
@@ -35,23 +31,29 @@ struct Window {
 
   ~Window() = default;
 
+  void AddLayer(
+      std::uint32_t sequence_id,
+      std::uint32_t sequence_begin,
+      std::uint32_t sequence_end,
+      std::uint32_t window_begin,
+      std::uint32_t window_end);
+
+  void Fill(
+      const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& targets,
+      const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& sequences);
+
   void GenerateConsensus(
       std::shared_ptr<spoa::AlignmentEngine> alignment_engine,
       bool trim);
-
-  void AddLayer(
-      const char* sequence, uint32_t sequence_len,
-      const char* quality, uint32_t quality_len,
-      uint32_t begin,
-      uint32_t end);
 
   std::uint64_t id;
   std::uint32_t rank;
   WindowType type;
   bool status;
   std::string consensus;
-  std::vector<std::pair<const char*, std::uint32_t>> sequences;
-  std::vector<std::pair<const char*, std::uint32_t>> qualities;
+  std::vector<std::uint32_t> sequences_ids;
+  std::vector<std::pair<std::uint32_t, std::uint32_t>> sequences_intervals;
+  std::vector<std::string> sequences;
   std::vector<std::pair<std::uint32_t, std::uint32_t>> positions;
 };
 

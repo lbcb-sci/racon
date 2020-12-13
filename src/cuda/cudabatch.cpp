@@ -3,6 +3,7 @@
  *
  * @brief CUDABatch class source file
  */
+#include "cudabatch.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -14,7 +15,6 @@
 #include "claraparabricks/genomeworks/utils/cudautils.hpp"
 
 #include "cudautils.hpp"
-#include "cudabatch.hpp"
 
 namespace racon {
 
@@ -84,17 +84,11 @@ bool CUDABatchProcessor::AddWindow(std::shared_ptr<Window> window) {
       num_seqs, std::vector<std::int8_t>());
 
   // Add first sequence as backbone to graph.
-  std::pair<const char*, std::uint32_t> seq = window->sequences.front();
-  std::pair<const char*, std::uint32_t> qualities = window->qualities.front();
-  std::vector<std::int8_t> backbone_weights;
-  ConvertPhredQualityToWeights(
-      qualities.first,
-      qualities.second,
-      &all_read_weights[0]);
+  all_read_weights[0].resize(window->sequences.front().size(), 0);
   Entry e = {
-      seq.first,
+      window->sequences.front().c_str(),
       all_read_weights[0].data(),
-      static_cast<std::int32_t>(seq.second)
+      static_cast<std::int32_t>(window->sequences.front().size())
   };
   poa_group.push_back(e);
 
@@ -115,19 +109,14 @@ bool CUDABatchProcessor::AddWindow(std::shared_ptr<Window> window) {
   std::uint32_t long_seq = 0;
   std::uint32_t skipped_seq = 0;
   for (std::uint32_t j = 1; j < num_seqs; j++) {
-    std::uint32_t i = rank.at(j);
-    seq = window->sequences.at(i);
-    qualities = window->qualities.at(i);
-    ConvertPhredQualityToWeights(
-        qualities.first,
-        qualities.second,
-        &all_read_weights[i]);
+    std::uint32_t i = rank[j];
 
     Entry p = {
-        seq.first,
+        window->sequences[i].c_str(),
         all_read_weights[i].data(),
-        static_cast<std::int32_t>(seq.second)
-      };
+        static_cast<std::int32_t>(window->sequences[i].size())
+    };
+
     poa_group.push_back(p);
   }
 
@@ -153,7 +142,8 @@ bool CUDABatchProcessor::AddWindow(std::shared_ptr<Window> window) {
       skipped_seq++;
       continue;
     } else if (entry_status[i] != StatusType::success) {
-      std::cerr << "Could not add sequence to POA in batch "
+      std::cerr << "[CUDABatchProcessor::AddWindow] error: "
+                << "could not add sequence to POA in batch "
                 << cudapoa_batch_->batch_id() << std::endl;
       exit(1);
     }
@@ -179,16 +169,6 @@ bool CUDABatchProcessor::HasWindows() const {
   return (cudapoa_batch_->get_total_poas() > 0);
 }
 
-void CUDABatchProcessor::ConvertPhredQualityToWeights(
-    const char* qual, std::uint32_t qual_len,
-    std::vector<std::int8_t>* weights) {
-  weights->clear();
-  for (std::uint32_t i = 0; i < qual_len; i++) {
-    // PHRED quality
-    weights->push_back(static_cast<std::uint8_t>(qual[i]) - 33);
-  }
-}
-
 void CUDABatchProcessor::GeneratePOA() {
   // call generate poa function
   cudapoa_batch_->generate_poa();
@@ -206,9 +186,7 @@ void CUDABatchProcessor::GetConsensus() {
       // This is a special case borrowed from the CPU version.
       // TODO(Nvidia): We still run this case through the GPU but could ommit it
       if (window->sequences.size() < 3) {
-        window->consensus = std::string(
-            window->sequences.front().first,
-            window->sequences.front().second);
+        window->consensus = window->sequences.front();
       } else {
         window->consensus = consensuses[i];
         window->status = true;
@@ -232,6 +210,9 @@ void CUDABatchProcessor::GetConsensus() {
           }
         }
       }
+
+      std::vector<std::string>{}.swap(window->sequences);
+      std::vector<std::pair<std::uint32_t, std::uint32_t>>{}.swap(window->positions);  // NOLINT
     }
   }
 }

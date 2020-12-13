@@ -1,14 +1,15 @@
 // Copyright (c) 2020 Robert Vaser
 
-#include "edlib.h"  // NOLINT
-
 #include "overlap.hpp"
+
+#include "edlib.h"  // NOLINT
 
 namespace racon {
 
 Overlap::Overlap(const biosoup::Overlap& other)
     : biosoup::Overlap(other),
-      intervals() {
+      lhs_intervals(),
+      rhs_intervals() {
 }
 
 Overlap& Overlap::operator=(const biosoup::Overlap& other) {
@@ -25,8 +26,8 @@ Overlap& Overlap::operator=(const biosoup::Overlap& other) {
 }
 
 void Overlap::Align(
-    const std::vector<std::unique_ptr<biosoup::Sequence>>& sequences,
-    const std::vector<std::unique_ptr<biosoup::Sequence>>& targets) {
+    const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& sequences,
+    const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& targets) {
   if (!alignment.empty()) {
     return;
   }
@@ -41,9 +42,12 @@ void Overlap::Align(
         "missing target sequence");
   }
 
+  std::string query = sequences[lhs_id]->Inflate(lhs_begin, lhs_end - lhs_begin);  // NOLINT
+  std::string target = targets[rhs_id]->Inflate(rhs_begin, rhs_end - rhs_begin);
+
   EdlibAlignResult result = edlibAlign(
-      &(sequences[lhs_id]->data[lhs_begin]), lhs_end - lhs_begin,
-      &(targets[rhs_id]->data[rhs_begin]), rhs_end - rhs_begin,
+      query.c_str(), query.size(),
+      target.c_str(), target.size(),
       edlibNewAlignConfig(
           -1,
           EDLIB_MODE_NW,
@@ -67,7 +71,7 @@ void Overlap::Align(
 }
 
 void Overlap::FindIntervals(std::uint32_t w) {
-  if (!intervals.empty()) {
+  if (!lhs_intervals.empty()) {
     return;
   }
   if (alignment.empty()) {
@@ -102,13 +106,13 @@ void Overlap::FindIntervals(std::uint32_t w) {
 
           if (!found_first) {
             found_first = true;
-            first = {t_ptr, q_ptr};
+            first = {q_ptr, t_ptr};
           }
-          last = {t_ptr + 1, q_ptr + 1};
+          last = {q_ptr, t_ptr};
           if (t_ptr == window_ends[k]) {
             if (found_first) {
-                intervals.emplace_back(first);
-                intervals.emplace_back(last);
+              lhs_intervals.emplace_back(first.first, last.first + 1);
+              rhs_intervals.emplace_back(first.second, last.second + 1);
             }
             found_first = false;
             ++k;
@@ -129,8 +133,8 @@ void Overlap::FindIntervals(std::uint32_t w) {
           ++t_ptr;
           if (t_ptr == window_ends[k]) {
             if (found_first) {
-              intervals.emplace_back(first);
-              intervals.emplace_back(last);
+              lhs_intervals.emplace_back(first.first, last.first + 1);
+              rhs_intervals.emplace_back(first.second, last.second + 1);
             }
             found_first = false;
             ++k;
@@ -149,7 +153,7 @@ void Overlap::FindIntervals(std::uint32_t w) {
     }
   }
 
-  std::string().swap(alignment);
+  std::string{}.swap(alignment);
 }
 
 }  // namespace racon

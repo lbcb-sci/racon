@@ -10,8 +10,8 @@
 #include <string>
 #include <utility>
 
+#include "biosoup/nucleic_acid.hpp"
 #include "biosoup/overlap.hpp"
-#include "biosoup/sequence.hpp"
 
 namespace racon {
 
@@ -35,13 +35,14 @@ struct Overlap: public biosoup::Overlap {
   }
 
   void Align(
-      const std::vector<std::unique_ptr<biosoup::Sequence>>& sequences,
-      const std::vector<std::unique_ptr<biosoup::Sequence>>& targets);
+      const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& sequences,
+      const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& targets);
 
   // find window points from cigar string
   void FindIntervals(std::uint32_t w);
 
-  std::vector<std::pair<std::uint32_t, std::uint32_t>> intervals;
+  std::vector<std::pair<std::uint32_t, std::uint32_t>> lhs_intervals;
+  std::vector<std::pair<std::uint32_t, std::uint32_t>> rhs_intervals;
 };
 
 }  // namespace racon

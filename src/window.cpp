@@ -1,49 +1,57 @@
 // Copyright (c) 2020 Robert Vaser
 
+#include "window.hpp"
+
 #include <algorithm>
 #include <stdexcept>
 
 #include "spoa/graph.hpp"
 
-#include "window.hpp"
-
 namespace racon {
 
-Window::Window(
-    std::uint64_t id,
-    std::uint32_t rank,
-    WindowType type,
-    const char* backbone, std::uint32_t backbone_len,
-    const char* quality, uint32_t quality_len)
+Window::Window(std::uint64_t id, std::uint32_t rank, WindowType type)
     : id(id),
       rank(rank),
       type(type),
       status(false),
       consensus(),
-      sequences(1, std::make_pair(backbone, backbone_len)),
-      qualities(1, std::make_pair(quality, quality_len)),
-      positions(1, std::make_pair(0, 0)) {
+      sequences_ids(),
+      sequences_intervals(),
+      sequences(),
+      positions() {
 }
 
 void Window::AddLayer(
-    const char* sequence, std::uint32_t sequence_len,
-    const char* quality, std::uint32_t quality_len,
-    std::uint32_t begin,
-    std::uint32_t end) {
-  if (quality != nullptr && sequence_len != quality_len) {
-    throw std::invalid_argument(
-        "[racon::Window::AddLayer] error: unequal quality size");
+    std::uint32_t sequence_id,
+    std::uint32_t sequence_begin,
+    std::uint32_t sequence_end,
+    std::uint32_t window_begin,
+    std::uint32_t window_end) {
+  sequences_ids.emplace_back(sequence_id);
+  sequences_intervals.emplace_back(sequence_begin, sequence_end);
+  positions.emplace_back(window_begin, window_end);
+}
+
+void Window::Fill(
+    const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& targets,
+    const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& sequences) {
+  if (sequences_ids.empty()) {
+    return;
   }
-  if (begin >= end ||
-      begin > sequences.front().second ||
-      end > sequences.front().second) {
-    throw std::invalid_argument(
-        "[racon::Window::AddLayer] error: invalid positions");
+  this->sequences.emplace_back(  // backbone
+      targets[sequences_ids[0]]->Inflate(
+          sequences_intervals[0].first,
+          sequences_intervals[0].second - sequences_intervals[0].first));
+
+  for (std::uint32_t i = 1; i < sequences_ids.size(); ++i) {
+    this->sequences.emplace_back(
+        sequences[sequences_ids[i]]->Inflate(
+            sequences_intervals[i].first,
+            sequences_intervals[i].second - sequences_intervals[i].first));
   }
 
-  sequences.emplace_back(sequence, sequence_len);
-  qualities.emplace_back(quality, quality_len);
-  positions.emplace_back(begin, end);
+  std::vector<std::uint32_t>{}.swap(sequences_ids);
+  std::vector<std::pair<std::uint32_t, std::uint32_t>>{}.swap(sequences_intervals);  // NOLINT
 }
 
 void Window::GenerateConsensus(
@@ -53,15 +61,12 @@ void Window::GenerateConsensus(
     return;
   }
   if (sequences.size() < 3) {
-    consensus = std::string(sequences.front().first, sequences.front().second);
+    consensus = sequences.front();
     return;
   }
 
   auto graph = spoa::Graph{};
-  graph.AddAlignment(
-      spoa::Alignment(),
-      sequences.front().first, sequences.front().second,
-      qualities.front().first, qualities.front().second);
+  graph.AddAlignment(spoa::Alignment(), sequences.front(), 0);
 
   std::vector<std::uint32_t> rank;
   rank.reserve(sequences.size());
@@ -74,38 +79,25 @@ void Window::GenerateConsensus(
         return positions[lhs].first < positions[rhs].first;
       });
 
-  std::uint32_t offset = 0.01 * sequences.front().second;
+  std::uint32_t offset = 0.01 * sequences.front().size();
   for (std::uint32_t j = 1; j < sequences.size(); ++j) {
     std::uint32_t i = rank[j];
 
     spoa::Alignment alignment;
     if (positions[i].first < offset &&
-        positions[i].second > sequences.front().second - offset) {
-      alignment = alignment_engine->Align(
-          sequences[i].first, sequences[i].second,
-          graph);
+        positions[i].second - 1 > sequences.front().size() - offset) {
+      alignment = alignment_engine->Align(sequences[i], graph);
     } else {
       std::vector<const spoa::Graph::Node*> mapping;
       auto subgraph = graph.Subgraph(
           positions[i].first,
-          positions[i].second,
+          positions[i].second - 1,
           &mapping);
-      alignment = alignment_engine->Align(
-          sequences[i].first, sequences[i].second,
-          subgraph);
+      alignment = alignment_engine->Align(sequences[i], subgraph);
       subgraph.UpdateAlignment(mapping, &alignment);
     }
 
-    if (qualities[i].first == nullptr) {
-      graph.AddAlignment(
-          alignment,
-          sequences[i].first, sequences[i].second);
-    } else {
-      graph.AddAlignment(
-        alignment,
-        sequences[i].first, sequences[i].second,
-        qualities[i].first, qualities[i].second);
-    }
+    graph.AddAlignment(alignment, sequences[i]);
   }
 
   std::vector<std::uint32_t> coverages;
@@ -130,8 +122,11 @@ void Window::GenerateConsensus(
       consensus = consensus.substr(begin, end - begin + 1);
     }
   }
-
   status = true;
+
+  std::vector<std::string>{}.swap(sequences);
+  std::vector<std::pair<std::uint32_t, std::uint32_t>>{}.swap(positions);
+
   return;
 }
 

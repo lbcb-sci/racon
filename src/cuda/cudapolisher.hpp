@@ -26,14 +26,14 @@ class CUDAPolisher : public Polisher {
 
  protected:
   CUDAPolisher(
-      double q,
+      std::shared_ptr<thread_pool::ThreadPool> thread_pool,
+      std::uint64_t batch_size,
       double e,
       std::uint32_t w,
       bool trim,
       std::int8_t m,
       std::int8_t n,
       std::int8_t g,
-      std::shared_ptr<thread_pool::ThreadPool> thread_pool,
       std::uint32_t cudapoa_batches,
       bool cuda_banded_alignment,
       std::uint32_t cudaaligner_batches,
@@ -43,9 +43,11 @@ class CUDAPolisher : public Polisher {
 
   void AllocateMemory(std::size_t step) override;
 
+  void DeallocateMemory(std::size_t step) override;
+
   void FindIntervals(
-      const std::vector<std::unique_ptr<biosoup::Sequence>>& targets,
-      const std::vector<std::unique_ptr<biosoup::Sequence>>& sequences,
+      const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& targets,
+      const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& sequences,
       std::vector<Overlap>* overlaps) override;
 
   void GenerateConsensus() override;
