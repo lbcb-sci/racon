@@ -23,9 +23,9 @@ static const std::int32_t CUDAALIGNER_INPUT_CODE = 10000;
 static const std::int32_t CUDAALIGNER_BAND_WIDTH_INPUT_CODE = 10001;
 
 static struct option options[] = {
-  {"batch-size", required_argument, nullptr, 'B'},
   {"include-unpolished", no_argument, nullptr, 'u'},
   {"window-length", required_argument, nullptr, 'w'},
+  {"quality-threshold", required_argument, nullptr, 'q'},
   {"error-threshold", required_argument, nullptr, 'e'},
   {"no-trimming", no_argument, nullptr, 'T'},
   {"match", required_argument, nullptr, 'm'},
@@ -87,11 +87,11 @@ void Help() {
       "    input file in FASTA/FASTQ format (can be compressed with gzip)\n"
       "\n"
       "  options:\n"
-      "    --batch-size <int>\n"
-      "      default: 2 ^ 36\n"
-      "      size in bytes for polishing memory consumption\n"
       "    -u, --include-unpolished\n"
       "      output unpolished target sequences\n"
+      "    -q, --quality-threshold <float>\n"
+      "      default: 10.0\n"
+      "      threshold for average base quality of windows used in POA\n"
       "    -e, --error-threshold <float>\n"
       "      default: 0.3\n"
       "      maximum allowed error rate used for filtering overlaps\n"
@@ -137,8 +137,7 @@ void Help() {
 int main(int argc, char** argv) {
   std::vector<std::string> input_paths;
 
-  std::uint64_t batch_size = 1ULL << 36;
-
+  double q = 10.0;
   double e = 0.3;
   std::uint32_t w = 500;
   bool trim = true;
@@ -155,7 +154,7 @@ int main(int argc, char** argv) {
   std::uint32_t cuda_aligner_band_width = 0;
   bool cuda_banded_alignment = false;
 
-  std::string optstring = "ue:w:m:n:g:t:h";
+  std::string optstring = "uq:e:w:m:n:g:t:h";
 #ifdef CUDA_ENABLED
   optstring += "c:b:";
 #endif
@@ -163,8 +162,8 @@ int main(int argc, char** argv) {
   int32_t argument;
   while ((argument = getopt_long(argc, argv, optstring.c_str(), options, nullptr)) != -1) {  // NOLINT
     switch (argument) {
-      case 'B': batch_size = atoll(optarg); break;
       case 'u': drop_unpolished = false; break;
+      case 'q': q = atof(optarg); break;
       case 'e': e = atof(optarg); break;
       case 'w': w = atoi(optarg); break;
       case 'T': trim = false; break;
@@ -262,7 +261,7 @@ int main(int argc, char** argv) {
   try {
     polisher = racon::Polisher::Create(
         thread_pool,
-        batch_size,
+        q,
         e,
         w,
         trim,
@@ -284,7 +283,7 @@ int main(int argc, char** argv) {
 
   for (const auto& it : polished) {
     std::cout << ">" << it->name << std::endl
-              << it->Inflate() << std::endl;
+              << it->InflateData() << std::endl;
   }
 
   std::cerr << "[racon::] "

@@ -21,20 +21,20 @@ namespace racon {
 
 Polisher::Polisher(
     std::shared_ptr<thread_pool::ThreadPool> thread_pool,
-    std::uint64_t batch_size,
+    double quality_threshold,
     double error_threshold,
     std::uint32_t window_len,
     bool trim_consensus,
     std::int8_t match,
     std::int8_t mismatch,
     std::int8_t gap)
-    : e_(error_threshold),
+    : q_(quality_threshold),
+      e_(error_threshold),
       w_(window_len),
       trim_(trim_consensus),
       thread_pool_(thread_pool ?
           thread_pool :
           std::make_shared<thread_pool::ThreadPool>(1)),
-      batch_size_(batch_size),
       mean_overlap_len_(0),
       windows_(),
       alignment_engines_() {
@@ -50,7 +50,7 @@ Polisher::Polisher(
 
 std::unique_ptr<Polisher> Polisher::Create(
     std::shared_ptr<thread_pool::ThreadPool> thread_pool,
-    std::uint64_t batch_size,
+    double quality_threshold,
     double error_threshold,
     std::uint32_t window_len,
     bool trim_consensus,
@@ -76,7 +76,7 @@ std::unique_ptr<Polisher> Polisher::Create(
     // If CUDA is enabled, return an instance of the CUDAPolisher object.
     return std::unique_ptr<Polisher>(new CUDAPolisher(
         thread_pool,
-        batch_size,
+        quality_threshold,
         error_threshold,
         window_len,
         trim_consensus,
@@ -96,7 +96,7 @@ std::unique_ptr<Polisher> Polisher::Create(
     (void) cuda_aligner_band_width;
     return std::unique_ptr<Polisher>(new Polisher(
         thread_pool,
-        batch_size,
+        quality_threshold,
         error_threshold,
         window_len,
         trim_consensus,
@@ -157,12 +157,8 @@ std::vector<std::unique_ptr<biosoup::NucleicAcid>> Polisher::Polish(
       windows_.emplace_back(std::make_shared<Window>(
           i,
           windows_.size() - target_to_window[i],
-          WindowType::kTGS));
-
-      std::uint32_t backbone_len =
-          std::min(w_, static_cast<std::uint32_t>(targets[i]->inflated_len) - j);  // NOLINT
-
-      windows_.back()->AddLayer(i, j, j + backbone_len, 0, backbone_len);
+          WindowType::kTGS,
+          targets[i]->InflateData(j, w_)));
     }
     target_to_window[i + 1] = windows_.size();
   }
@@ -175,7 +171,17 @@ std::vector<std::unique_ptr<biosoup::NucleicAcid>> Polisher::Polish(
           overlaps[i].lhs_intervals[j].first < .02 * w_) {
         continue;
       }
-      // TODO(rvaser): devise a filtering option other than average quality
+      if (!sequences[overlaps[i].lhs_id]->block_quality.empty()) {
+        double avg_q = 0;
+        std::uint32_t k = overlaps[i].lhs_intervals[j].first;
+        for (; k < overlaps[i].lhs_intervals[j].second; ++k) {
+          avg_q += sequences[overlaps[i].lhs_id]->Score(k);
+        }
+        avg_q /= overlaps[i].lhs_intervals[j].second - overlaps[i].lhs_intervals[j].first;  // NOLINT
+        if (avg_q < q_) {
+          continue;
+        }
+      }
 
       std::uint32_t rank = overlaps[i].rhs_intervals[j].first / w_;
 
@@ -192,19 +198,6 @@ std::vector<std::unique_ptr<biosoup::NucleicAcid>> Polisher::Polish(
   }
   std::vector<racon::Overlap>{}.swap(overlaps);
 
-  std::uint64_t windows_per_batch = 0;
-  {
-    std::uint64_t targets_size = 0;
-    for (const auto& it : targets) {
-      targets_size += it->inflated_len;
-    }
-    std::uint64_t sequences_size = 0;
-    for (const auto& it : sequences) {
-      sequences_size += it->inflated_len;
-    }
-    windows_per_batch = batch_size_ / (w_ * sequences_size / targets_size);
-  }
-
   std::cerr << "[racon::Polisher::Polish] prepared " << windows_.size()
             << " window placeholders "
             << std::fixed << timer.Stop() << "s"
@@ -213,34 +206,7 @@ std::vector<std::unique_ptr<biosoup::NucleicAcid>> Polisher::Polish(
   timer.Start();
 
   AllocateMemory(2);
-
-  timer.Stop();
-  timer.Start();
-
-  std::vector<std::future<void>> futures;
-  for (std::uint64_t i = 0, j = 0; i < windows_.size(); ++i, ++j) {
-    futures.emplace_back(thread_pool_->Submit(
-        [&] (std::uint64_t i) -> void {
-          windows_[i]->Fill(targets, sequences);
-        },
-        i));
-
-    if (i != windows_.size() - 1 && j < windows_per_batch) {
-      continue;
-    }
-    j = 0;
-
-    for (const auto& it : futures) {
-      it.wait();
-    }
-    futures.clear();
-
-    GenerateConsensus();
-
-    timer.Stop();
-    timer.Start();
-  }
-
+  GenerateConsensus(sequences);
   DeallocateMemory(2);
 
   timer.Stop();
@@ -418,19 +384,23 @@ void Polisher::FindIntervals(
   std::cerr << std::endl;
 }
 
-void Polisher::GenerateConsensus() {
+void Polisher::GenerateConsensus(
+    const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& sequences) {
   biosoup::Timer timer{};
   timer.Start();
 
   std::vector<std::future<void>> futures;
   for (std::uint64_t i = 0; i < windows_.size(); ++i) {
-    if (!windows_[i]->consensus.empty() || windows_[i]->sequences.empty()) {
+    if (!windows_[i]->consensus.empty()) {
       continue;
     }
     futures.emplace_back(thread_pool_->Submit(
       [&] (std::uint64_t i) -> void {
         auto it = thread_pool_->thread_ids().find(std::this_thread::get_id());
-        windows_[i]->GenerateConsensus(alignment_engines_[it->second], trim_);
+        windows_[i]->GenerateConsensus(
+            sequences,
+            alignment_engines_[it->second],
+            trim_);
       },
       i));
   }

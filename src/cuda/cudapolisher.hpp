@@ -27,7 +27,7 @@ class CUDAPolisher : public Polisher {
  protected:
   CUDAPolisher(
       std::shared_ptr<thread_pool::ThreadPool> thread_pool,
-      std::uint64_t batch_size,
+      double q,
       double e,
       std::uint32_t w,
       bool trim,
@@ -50,7 +50,8 @@ class CUDAPolisher : public Polisher {
       const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& sequences,
       std::vector<Overlap>* overlaps) override;
 
-  void GenerateConsensus() override;
+  void GenerateConsensus(
+    const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& sequences) override;  // NOLINT
 
   static std::vector<std::uint32_t> CalculateBatchesPerGpu(
       std::uint32_t cudapoa_batches,

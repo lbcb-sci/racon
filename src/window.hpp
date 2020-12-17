@@ -21,7 +21,11 @@ enum class WindowType {
 
 struct Window {
  public:
-  Window(std::uint64_t id, std::uint32_t rank, WindowType type);
+  Window(
+      std::uint64_t id,
+      std::uint32_t rank,
+      WindowType type,
+      const std::string& backbone);
 
   Window(const Window&) = default;
   Window& operator=(const Window&) = default;
@@ -38,11 +42,8 @@ struct Window {
       std::uint32_t window_begin,
       std::uint32_t window_end);
 
-  void Fill(
-      const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& targets,
-      const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& sequences);
-
   void GenerateConsensus(
+      const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& sequences,
       std::shared_ptr<spoa::AlignmentEngine> alignment_engine,
       bool trim);
 
@@ -50,10 +51,10 @@ struct Window {
   std::uint32_t rank;
   WindowType type;
   bool status;
+  std::string backbone;
   std::string consensus;
   std::vector<std::uint32_t> sequences_ids;
   std::vector<std::pair<std::uint32_t, std::uint32_t>> sequences_intervals;
-  std::vector<std::string> sequences;
   std::vector<std::pair<std::uint32_t, std::uint32_t>> positions;
 };
 

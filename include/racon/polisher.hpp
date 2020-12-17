@@ -29,7 +29,7 @@ class Polisher {
 
   static std::unique_ptr<Polisher> Create(  // CPU or GPU polisher
       std::shared_ptr<thread_pool::ThreadPool> thread_pool = nullptr,
-      std::uint64_t batch_size = 1ULL << 36,  // bytes
+      double quality_threshold = 10,
       double error_threshold = .3,
       std::uint32_t window_len = 500,
       bool trim_consensus = true,
@@ -49,7 +49,7 @@ class Polisher {
  protected:
   Polisher(
       std::shared_ptr<thread_pool::ThreadPool> thread_pool,
-      std::uint64_t batch_size,
+      double quality_threshold,
       double error_threshold,
       std::uint32_t window_len,
       bool trim_consensus,
@@ -70,8 +70,10 @@ class Polisher {
       const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& sequences,
       std::vector<Overlap>* overlaps);
 
-  virtual void GenerateConsensus();  // partial order alignment
+  virtual void GenerateConsensus(  // partial order alignment
+      const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& sequences);
 
+  double q_;
   double e_;
   std::uint32_t w_;
   bool trim_;

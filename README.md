@@ -24,11 +24,11 @@ usage: racon [options ...] <target> <sequences>
     input file in FASTA/FASTQ format (can be compressed with gzip)
 
   options:
-    --batch-size <int>
-      default: 2 ^ 36
-      size in bytes for polishing memory consumption
     -u, --include-unpolished
       output unpolished target sequences
+    -q, --quality-threshold <float>
+      default: 10.0
+      threshold for average base quality of windows used in POA
     -e, --error-threshold <float>
       default: 0.3
       maximum allowed error rate used for filtering overlaps

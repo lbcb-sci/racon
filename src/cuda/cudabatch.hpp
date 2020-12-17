@@ -47,7 +47,9 @@ class CUDABatchProcessor {
    *
    * @return True of window could be added to the batch.
    */
-  bool AddWindow(std::shared_ptr<Window> window);
+  bool AddWindow(
+      std::shared_ptr<Window> window,
+      const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& sequences);
 
   /**
    * @brief Checks if batch has any windows to process.

@@ -17,7 +17,7 @@ class RaconPolisherTest: public ::testing::Test {
   void Setup(
       const std::string& targets_path,
       const std::string& sequences_path,
-      std::uint64_t batch_size,
+      double q,
       double e,
       std::uint32_t w,
       std::int8_t m,
@@ -32,9 +32,15 @@ class RaconPolisherTest: public ::testing::Test {
     targets = tparser->Parse(-1);
 
     biosoup::NucleicAcid::num_objects = 0;
-    auto sparser = bioparser::Parser<biosoup::NucleicAcid>::Create<
-        bioparser::FastaParser>(RACON_DATA_PATH + sequences_path);
-    sequences = sparser->Parse(-1);
+    try {
+      auto sparser = bioparser::Parser<biosoup::NucleicAcid>::Create<
+          bioparser::FastaParser>(RACON_DATA_PATH + sequences_path);
+      sequences = sparser->Parse(-1);
+    } catch (const std::invalid_argument& exception) {
+      auto sparser = bioparser::Parser<biosoup::NucleicAcid>::Create<
+          bioparser::FastqParser>(RACON_DATA_PATH + sequences_path);
+      sequences = sparser->Parse(-1);
+    }
 
     auto rparser = bioparser::Parser<biosoup::NucleicAcid>::Create<
         bioparser::FastaParser>(RACON_DATA_PATH + std::string("sample_reference.fasta.gz"));  // NOLINT
@@ -42,7 +48,7 @@ class RaconPolisherTest: public ::testing::Test {
 
     polisher = racon::Polisher::Create(
         std::make_shared<thread_pool::ThreadPool>(4),
-        batch_size,
+        q,
         e,
         w,
         true,
@@ -82,122 +88,175 @@ TEST_F(RaconPolisherTest, WindowLengthError) {
 }
 
 TEST_F(RaconPolisherTest, Polish) {
-  Setup("sample_layout.fasta.gz", "sample_reads.fasta.gz", -1, 0.3, 500, 3, -5, -4);  // NOLINT
+  Setup("sample_layout.fasta.gz", "sample_reads.fasta.gz", 10, 0.3, 500, 3, -5, -4);  // NOLINT
 
   auto polished = polisher->Polish(targets, sequences, true);
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
-  EXPECT_EQ(1528, EditDistance(polished.front()->Inflate(), reference->Inflate()));  // NOLINT
+  EXPECT_EQ(1528, EditDistance(polished.front()->InflateData(), reference->InflateData()));  // NOLINT
 }
 
-TEST_F(RaconPolisherTest, PolishBatch) {
-  Setup("sample_layout.fasta.gz", "sample_reads.fasta.gz", 1ULL << 19, 0.3, 500, 3, -5, -4);  // NOLINT
+TEST_F(RaconPolisherTest, PolishQuality) {
+  Setup("sample_layout.fasta.gz", "sample_reads.fastq.gz", 10, 0.3, 500, 3, -5, -4);  // NOLINT
 
   auto polished = polisher->Polish(targets, sequences, true);
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
-  EXPECT_EQ(1528, EditDistance(polished.front()->Inflate(), reference->Inflate()));  // NOLINT
+  EXPECT_EQ(1268, EditDistance(polished.front()->InflateData(), reference->InflateData()));  // NOLINT
 }
 
 TEST_F(RaconPolisherTest, PolishLargeWindow) {
-  Setup("sample_layout.fasta.gz", "sample_reads.fasta.gz", -1, 0.3, 1000, 3, -5, -4);  // NOLINT
+  Setup("sample_layout.fasta.gz", "sample_reads.fasta.gz", 10, 0.3, 1000, 3, -5, -4);  // NOLINT
 
   auto polished = polisher->Polish(targets, sequences, true);
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
-  EXPECT_EQ(1512, EditDistance(polished.front()->Inflate(), reference->Inflate()));  // NOLINT
+  EXPECT_EQ(1512, EditDistance(polished.front()->InflateData(), reference->InflateData()));  // NOLINT
+}
+
+TEST_F(RaconPolisherTest, PolishQualityLargeWindow) {
+  Setup("sample_layout.fasta.gz", "sample_reads.fastq.gz", 10, 0.3, 1000, 3, -5, -4);  // NOLINT
+
+  auto polished = polisher->Polish(targets, sequences, true);
+  EXPECT_EQ(polished.size(), 1);
+
+  polished.front()->ReverseAndComplement();
+  EXPECT_EQ(1260, EditDistance(polished.front()->InflateData(), reference->InflateData()));  // NOLINT
 }
 
 TEST_F(RaconPolisherTest, PolishEditDistance) {
-  Setup("sample_layout.fasta.gz", "sample_reads.fasta.gz", -1, 0.3, 500, 1, -1, -1);  // NOLINT
+  Setup("sample_layout.fasta.gz", "sample_reads.fasta.gz", 10, 0.3, 500, 1, -1, -1);  // NOLINT
 
   auto polished = polisher->Polish(targets, sequences, true);
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
-  EXPECT_EQ(1520, EditDistance(polished.front()->Inflate(), reference->Inflate()));  // NOLINT
+  EXPECT_EQ(1520, EditDistance(polished.front()->InflateData(), reference->InflateData()));  // NOLINT
+}
+
+TEST_F(RaconPolisherTest, PolishQualityEditDistance) {
+  Setup("sample_layout.fasta.gz", "sample_reads.fastq.gz", 10, 0.3, 500, 1, -1, -1);  // NOLINT
+
+  auto polished = polisher->Polish(targets, sequences, true);
+  EXPECT_EQ(polished.size(), 1);
+
+  polished.front()->ReverseAndComplement();
+  EXPECT_EQ(1292, EditDistance(polished.front()->InflateData(), reference->InflateData()));  // NOLINT
 }
 
 #ifdef CUDA_ENABLED
 
 TEST_F(RaconPolisherTest, PolishCudaPoa) {
-  Setup("sample_layout.fasta.gz", "sample_reads.fasta.gz", -1, 0.3, 500, 3, -5, -4, 1);  // NOLINT
+  Setup("sample_layout.fasta.gz", "sample_reads.fasta.gz", 10, 0.3, 500, 3, -5, -4, 1);  // NOLINT
 
   auto polished = polisher->Polish(targets, sequences, true);
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
   // CPU 1528
-  EXPECT_EQ(1577, EditDistance(polished.front()->Inflate(), reference->Inflate()));  // NOLINT
+  EXPECT_EQ(1577, EditDistance(polished.front()->InflateData(), reference->InflateData()));  // NOLINT
 }
 
-TEST_F(RaconPolisherTest, PolishBatchCudaPoa) {
-  Setup("sample_layout.fasta.gz", "sample_reads.fasta.gz", 1UL << 19, 0.3, 500, 3, -5, -4, 1);  // NOLINT
+TEST_F(RaconPolisherTest, PolishQualityCudaPoa) {
+  Setup("sample_layout.fasta.gz", "sample_reads.fastq.gz", 10, 0.3, 500, 3, -5, -4, 1);  // NOLINT
 
   auto polished = polisher->Polish(targets, sequences, true);
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
-  // CPU 1528
-  EXPECT_EQ(1577, EditDistance(polished.front()->Inflate(), reference->Inflate()));  // NOLINT
+  // CPU 1268
+  EXPECT_EQ(1281, EditDistance(polished.front()->InflateData(), reference->InflateData()));  // NOLINT
 }
 
 TEST_F(RaconPolisherTest, PolishCudaPoaCudaAlignment) {
-  Setup("sample_layout.fasta.gz", "sample_reads.fasta.gz", -1, 0.3, 500, 3, -5, -4, 1, false, 1);  // NOLINT
+  Setup("sample_layout.fasta.gz", "sample_reads.fasta.gz", 10, 0.3, 500, 3, -5, -4, 1, false, 1);  // NOLINT
 
   auto polished = polisher->Polish(targets, sequences, true);
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
   // CPU 1528
-  EXPECT_EQ(1577, EditDistance(polished.front()->Inflate(), reference->Inflate()));  // NOLINT
+  EXPECT_EQ(1577, EditDistance(polished.front()->InflateData(), reference->InflateData()));  // NOLINT
+}
+
+TEST_F(RaconPolisherTest, PolishQualityCudaPoaCudaAlignment) {
+  Setup("sample_layout.fasta.gz", "sample_reads.fastq.gz", 10, 0.3, 500, 3, -5, -4, 1, false, 1);  // NOLINT
+
+  auto polished = polisher->Polish(targets, sequences, true);
+  EXPECT_EQ(polished.size(), 1);
+
+  polished.front()->ReverseAndComplement();
+  // CPU 1268
+  EXPECT_EQ(1281, EditDistance(polished.front()->InflateData(), reference->InflateData()));  // NOLINT
 }
 
 TEST_F(RaconPolisherTest, PolishLargeWindowCudaPoa) {
-  Setup("sample_layout.fasta.gz", "sample_reads.fasta.gz", -1, 0.3, 1000, 3, -5, -4, 1);  // NOLINT
+  Setup("sample_layout.fasta.gz", "sample_reads.fasta.gz", 10, 0.3, 1000, 3, -5, -4, 1);  // NOLINT
 
   auto polished = polisher->Polish(targets, sequences, true);
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
   // CPU 1512
-  EXPECT_EQ(2786, EditDistance(polished.front()->Inflate(), reference->Inflate()));  // NOLINT
+  EXPECT_EQ(2786, EditDistance(polished.front()->InflateData(), reference->InflateData()));  // NOLINT
+}
+
+TEST_F(RaconPolisherTest, PolishQualityLargeWindowCudaPoa) {
+  Setup("sample_layout.fasta.gz", "sample_reads.fastq.gz", 10, 0.3, 1000, 3, -5, -4, 1);  // NOLINT
+
+  auto polished = polisher->Polish(targets, sequences, true);
+  EXPECT_EQ(polished.size(), 1);
+
+  polished.front()->ReverseAndComplement();
+  // CPU 1260
+  EXPECT_EQ(3934, EditDistance(polished.front()->InflateData(), reference->InflateData()));  // NOLINT
 }
 
 TEST_F(RaconPolisherTest, PolishLargeWindowCudaPoaCudaAlignment) {
-  Setup("sample_layout.fasta.gz", "sample_reads.fasta.gz", -1, 0.3, 1000, 3, -5, -4, 1, false, 1);  // NOLINT
+  Setup("sample_layout.fasta.gz", "sample_reads.fasta.gz", 10, 0.3, 1000, 3, -5, -4, 1, false, 1);  // NOLINT
 
   auto polished = polisher->Polish(targets, sequences, true);
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
   // CPU 1512
-  EXPECT_EQ(2789, EditDistance(polished.front()->Inflate(), reference->Inflate()));  // NOLINT
+  EXPECT_EQ(2789, EditDistance(polished.front()->InflateData(), reference->InflateData()));  // NOLINT
 }
 
 TEST_F(RaconPolisherTest, PolishEditDistanceCudaPoa) {
-  Setup("sample_layout.fasta.gz", "sample_reads.fasta.gz", -1, 0.3, 500, 3, -1, -1, 1);  // NOLINT
+  Setup("sample_layout.fasta.gz", "sample_reads.fasta.gz", 10, 0.3, 500, 3, -1, -1, 1);  // NOLINT
 
   auto polished = polisher->Polish(targets, sequences, true);
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
   // CPU 1520
-  EXPECT_EQ(1854, EditDistance(polished.front()->Inflate(), reference->Inflate()));  // NOLINT
+  EXPECT_EQ(1854, EditDistance(polished.front()->InflateData(), reference->InflateData()));  // NOLINT
+}
+
+TEST_F(RaconPolisherTest, PolishQualityEditDistanceCudaPoa) {
+  Setup("sample_layout.fasta.gz", "sample_reads.fastq.gz", 10, 0.3, 500, 3, -1, -1, 1);  // NOLINT
+
+  auto polished = polisher->Polish(targets, sequences, true);
+  EXPECT_EQ(polished.size(), 1);
+
+  polished.front()->ReverseAndComplement();
+  // CPU 1292
+  EXPECT_EQ(1453, EditDistance(polished.front()->InflateData(), reference->InflateData()));  // NOLINT
 }
 
 TEST_F(RaconPolisherTest, PolishEditDistanceCudaPoaCudaAlignment) {
-  Setup("sample_layout.fasta.gz", "sample_reads.fasta.gz", -1, 0.3, 500, 3, -1, -1, 1, false, 1);  // NOLINT
+  Setup("sample_layout.fasta.gz", "sample_reads.fasta.gz", 10, 0.3, 500, 3, -1, -1, 1, false, 1);  // NOLINT
 
   auto polished = polisher->Polish(targets, sequences, true);
   EXPECT_EQ(polished.size(), 1);
 
   polished.front()->ReverseAndComplement();
   // CPU 1520
-  EXPECT_EQ(1855, EditDistance(polished.front()->Inflate(), reference->Inflate()));  // NOLINT
+  EXPECT_EQ(1855, EditDistance(polished.front()->InflateData(), reference->InflateData()));  // NOLINT
 }
 #endif
 

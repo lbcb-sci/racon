@@ -22,7 +22,7 @@ namespace racon {
 
 CUDAPolisher::CUDAPolisher(
     std::shared_ptr<thread_pool::ThreadPool> thread_pool,
-    std::uint64_t batch_size,
+    double q,
     double e,
     std::uint32_t w,
     bool trim,
@@ -32,7 +32,7 @@ CUDAPolisher::CUDAPolisher(
     std::uint32_t cudapoa_batches, bool cuda_banded_alignment,
     std::uint32_t cudaaligner_batches,
     std::uint32_t cudaaligner_band_width)
-    : Polisher(thread_pool, batch_size, e, w, trim, m, n, g),
+    : Polisher(thread_pool, q, e, w, trim, m, n, g),
       cudapoa_batches_(cudapoa_batches),
       cudaaligner_batches_(cudaaligner_batches),
       gap_(g),
@@ -226,7 +226,8 @@ void CUDAPolisher::FindIntervals(
   Polisher::FindIntervals(targets, sequences, overlaps);
 }
 
-void CUDAPolisher::GenerateConsensus() {
+void CUDAPolisher::GenerateConsensus(
+    const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& sequences) {
   if (cudapoa_batches_ > 0) {
     biosoup::Timer timer{};
     timer.Start();
@@ -248,8 +249,8 @@ void CUDAPolisher::GenerateConsensus() {
       std::uint32_t count = 0;
       while (next_window_index < windows_.size()) {
         if (windows_[next_window_index]->consensus.empty() &&
-            windows_[next_window_index]->sequences.empty() == false) {
-          if (!batch->AddWindow(windows_.at(next_window_index))) {
+            windows_[next_window_index]->sequences_ids.empty() == false) {
+          if (!batch->AddWindow(windows_.at(next_window_index), sequences)) {
             break;
           }
           ++count;
@@ -261,7 +262,7 @@ void CUDAPolisher::GenerateConsensus() {
 
     std::uint32_t num_windows = 0;
     for (const auto& it : windows_) {
-      if (it->consensus.empty() && !it->sequences.empty()) {
+      if (it->consensus.empty() && !it->sequences_ids.empty()) {
         ++num_windows;
       }
     }
@@ -312,7 +313,7 @@ void CUDAPolisher::GenerateConsensus() {
 
   // This call runs the generates consensuses for all windows. Any windows that
   // couldn't be processed by the GPU are also handled here by the CPU
-  Polisher::GenerateConsensus();
+  Polisher::GenerateConsensus(sequences);
 }
 
 }  // namespace racon

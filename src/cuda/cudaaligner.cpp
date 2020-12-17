@@ -54,10 +54,10 @@ bool CUDABatchAligner::AddOverlap(
     Overlap* overlap,
     const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& targets,
     const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& sequences) {
-  std::string q = sequences[overlap->lhs_id]->Inflate(
+  std::string q = sequences[overlap->lhs_id]->InflateData(
       overlap->lhs_begin,
       overlap->lhs_end - overlap->lhs_begin);
-  std::string t = targets[overlap->rhs_id]->Inflate(
+  std::string t = targets[overlap->rhs_id]->InflateData(
       overlap->rhs_begin,
       overlap->rhs_end - overlap->rhs_begin);
 

@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cstring>
 #include <iostream>
+#include <numeric>
 #include <string>
 #include <utility>
 
@@ -77,30 +78,45 @@ CUDABatchProcessor::~CUDABatchProcessor() {
   GW_CU_CHECK_ERR(cudaStreamDestroy(stream_));
 }
 
-bool CUDABatchProcessor::AddWindow(std::shared_ptr<Window> window) {
+bool CUDABatchProcessor::AddWindow(
+    std::shared_ptr<Window> window,
+    const std::vector<std::unique_ptr<biosoup::NucleicAcid>>& sequences) {
   Group poa_group;
-  std::uint32_t num_seqs = window->sequences.size();
-  std::vector<std::vector<std::int8_t>> all_read_weights(
-      num_seqs, std::vector<std::int8_t>());
+
+  std::uint32_t num_seqs = window->sequences_ids.size();
+  std::vector<std::string> seqs;
+  std::vector<std::vector<std::int8_t>> weights(num_seqs);
+
+  for (std::uint32_t i = 0; i < num_seqs; ++i) {
+    seqs.emplace_back(sequences[window->sequences_ids[i]]->InflateData(
+        window->sequences_intervals[i].first,
+        window->sequences_intervals[i].second - window->sequences_intervals[i].first));  // NOLINT
+
+    if (sequences[window->sequences_ids[i]]->block_quality.empty()) {
+      continue;
+    }
+    weights[i].reserve(seqs.back().size());
+    std::uint32_t j = window->sequences_intervals[i].first;
+    for (; j < window->sequences_intervals[i].second; ++j) {
+      weights[i].emplace_back(sequences[window->sequences_ids[i]]->Score(j));
+    }
+  }
 
   // Add first sequence as backbone to graph.
-  all_read_weights[0].resize(window->sequences.front().size(), 0);
+  std::vector<std::int8_t> backbone_weights(window->backbone.size(), 0);
   Entry e = {
-      window->sequences.front().c_str(),
-      all_read_weights[0].data(),
-      static_cast<std::int32_t>(window->sequences.front().size())
+      window->backbone.c_str(),
+      backbone_weights.data(),
+      static_cast<std::int32_t>(window->backbone.size())
   };
   poa_group.push_back(e);
 
   // Add the rest of the sequences in sorted order of starting positions.
-  std::vector<std::uint32_t> rank;
-  rank.reserve(window->sequences.size());
-
-  for (std::uint32_t i = 0; i < num_seqs; ++i) {
-    rank.emplace_back(i);
-  }
-
-  std::stable_sort(rank.begin() + 1, rank.end(),
+  std::vector<std::uint32_t> rank(num_seqs);
+  std::iota(rank.begin(), rank.end(), 0);
+  std::stable_sort(
+      rank.begin(),
+      rank.end(),
       [&] (std::uint32_t lhs, std::uint32_t rhs) {
         return window->positions[lhs].first < window->positions[rhs].first;
       });
@@ -108,13 +124,13 @@ bool CUDABatchProcessor::AddWindow(std::shared_ptr<Window> window) {
   // Start from index 1 since first sequence has already been added as backbone.
   std::uint32_t long_seq = 0;
   std::uint32_t skipped_seq = 0;
-  for (std::uint32_t j = 1; j < num_seqs; j++) {
+  for (std::uint32_t j = 0; j < num_seqs; j++) {
     std::uint32_t i = rank[j];
 
     Entry p = {
-        window->sequences[i].c_str(),
-        all_read_weights[i].data(),
-        static_cast<std::int32_t>(window->sequences[i].size())
+        seqs[i].c_str(),
+        weights[i].data(),
+        static_cast<std::int32_t>(seqs[i].size())
     };
 
     poa_group.push_back(p);
@@ -123,6 +139,9 @@ bool CUDABatchProcessor::AddWindow(std::shared_ptr<Window> window) {
   // Add group to CUDAPOA batch object.
   std::vector<StatusType> entry_status;
   StatusType status = cudapoa_batch_->add_poa_group(entry_status, poa_group);
+
+  weights.clear();
+  seqs.clear();
 
   // If group was added, then push window in accepted windows list.
   if (status != StatusType::success) {
@@ -185,8 +204,8 @@ void CUDABatchProcessor::GetConsensus() {
     if (output_status.at(i) == StatusType::success) {
       // This is a special case borrowed from the CPU version.
       // TODO(Nvidia): We still run this case through the GPU but could ommit it
-      if (window->sequences.size() < 3) {
-        window->consensus = window->sequences.front();
+      if (window->sequences_ids.size() < 2) {
+        window->consensus = window->backbone;
       } else {
         window->consensus = consensuses[i];
         window->status = true;
@@ -211,7 +230,8 @@ void CUDABatchProcessor::GetConsensus() {
         }
       }
 
-      std::vector<std::string>{}.swap(window->sequences);
+      std::vector<uint32_t>{}.swap(window->sequences_ids);
+      std::vector<std::pair<std::uint32_t, std::uint32_t>>{}.swap(window->sequences_intervals);  // NOLINT
       std::vector<std::pair<std::uint32_t, std::uint32_t>>{}.swap(window->positions);  // NOLINT
     }
   }

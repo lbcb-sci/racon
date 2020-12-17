@@ -42,8 +42,8 @@ void Overlap::Align(
         "missing target sequence");
   }
 
-  std::string query = sequences[lhs_id]->Inflate(lhs_begin, lhs_end - lhs_begin);  // NOLINT
-  std::string target = targets[rhs_id]->Inflate(rhs_begin, rhs_end - rhs_begin);
+  std::string query = sequences[lhs_id]->InflateData(lhs_begin, lhs_end - lhs_begin);  // NOLINT
+  std::string target = targets[rhs_id]->InflateData(rhs_begin, rhs_end - rhs_begin);  // NOLINT
 
   EdlibAlignResult result = edlibAlign(
       query.c_str(), query.size(),
