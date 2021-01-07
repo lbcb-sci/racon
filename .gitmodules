@@ -20,3 +20,5 @@
 	path = vendor/GenomeWorks
 	url = https://github.com/clara-parabricks/GenomeWorks.git
 	branch = master
+[submodule "vendor/bioparser/"]
+	url = https://github.com/mr-c/bioparser.git

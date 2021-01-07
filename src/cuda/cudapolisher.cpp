@@ -15,7 +15,7 @@
 #include <claraparabricks/genomeworks/utils/cudautils.hpp>
 #include <algorithm>
 
-#include "bioparser/bioparser.hpp"
+#include "bioparser/parser.hpp"
 
 namespace racon {
 
