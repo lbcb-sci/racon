@@ -10,7 +10,7 @@
 #include "polisher.hpp"
 
 #include "edlib.h"
-#include "bioparser/bioparser.hpp"
+#include "bioparser/fasta_parser.hpp"
 #include "gtest/gtest.h"
 
 uint32_t calculateEditDistance(const std::string& query, const std::string& target) {
@@ -98,13 +98,14 @@ TEST_F(RaconPolishingTest, ConsensusWithQualities) {
 
     polished_sequences[0]->create_reverse_complement();
 
-    auto parser = bioparser::createParser<bioparser::FastaParser, racon::Sequence>(
+    auto parser = bioparser::Parser<racon::Sequence>::Create<bioparser::FastaParser>(
         racon_test_data_path + "sample_reference.fasta.gz");
-    parser->parse(polished_sequences, -1);
-    EXPECT_EQ(polished_sequences.size(), 2);
+    auto reference = parser->Parse(-1);
+    EXPECT_EQ(reference.size(), 1);
 
-    EXPECT_EQ(calculateEditDistance(polished_sequences[0]->reverse_complement(),
-        polished_sequences[1]->data()), 1312);
+    EXPECT_EQ(1312, calculateEditDistance(
+        polished_sequences[0]->reverse_complement(),
+        reference[0]->data()));
 }
 
 TEST_F(RaconPolishingTest, ConsensusWithoutQualities) {
@@ -120,13 +121,15 @@ TEST_F(RaconPolishingTest, ConsensusWithoutQualities) {
 
     polished_sequences[0]->create_reverse_complement();
 
-    auto parser = bioparser::createParser<bioparser::FastaParser, racon::Sequence>(
+    auto parser = bioparser::Parser<racon::Sequence>::Create<bioparser::FastaParser>(
         racon_test_data_path + "sample_reference.fasta.gz");
-    parser->parse(polished_sequences, -1);
-    EXPECT_EQ(polished_sequences.size(), 2);
+    auto reference = parser->Parse(-1);
+    EXPECT_EQ(reference.size(), 1);
 
-    EXPECT_EQ(calculateEditDistance(polished_sequences[0]->reverse_complement(),
-        polished_sequences[1]->data()), 1566);
+
+    EXPECT_EQ(1566, calculateEditDistance(
+        polished_sequences[0]->reverse_complement(),
+        reference[0]->data()));
 }
 
 TEST_F(RaconPolishingTest, ConsensusWithQualitiesAndAlignments) {
@@ -142,13 +145,14 @@ TEST_F(RaconPolishingTest, ConsensusWithQualitiesAndAlignments) {
 
     polished_sequences[0]->create_reverse_complement();
 
-    auto parser = bioparser::createParser<bioparser::FastaParser, racon::Sequence>(
+    auto parser = bioparser::Parser<racon::Sequence>::Create<bioparser::FastaParser>(
         racon_test_data_path + "sample_reference.fasta.gz");
-    parser->parse(polished_sequences, -1);
-    EXPECT_EQ(polished_sequences.size(), 2);
+    auto reference = parser->Parse(-1);
+    EXPECT_EQ(reference.size(), 1);
 
-    EXPECT_EQ(calculateEditDistance(polished_sequences[0]->reverse_complement(),
-        polished_sequences[1]->data()), 1317);
+    EXPECT_EQ(1317, calculateEditDistance(
+        polished_sequences[0]->reverse_complement(),
+        reference[0]->data()));
 }
 
 TEST_F(RaconPolishingTest, ConsensusWithoutQualitiesAndWithAlignments) {
@@ -164,13 +168,14 @@ TEST_F(RaconPolishingTest, ConsensusWithoutQualitiesAndWithAlignments) {
 
     polished_sequences[0]->create_reverse_complement();
 
-    auto parser = bioparser::createParser<bioparser::FastaParser, racon::Sequence>(
+    auto parser = bioparser::Parser<racon::Sequence>::Create<bioparser::FastaParser>(
         racon_test_data_path + "sample_reference.fasta.gz");
-    parser->parse(polished_sequences, -1);
-    EXPECT_EQ(polished_sequences.size(), 2);
+    auto reference = parser->Parse(-1);
+    EXPECT_EQ(reference.size(), 1);
 
-    EXPECT_EQ(calculateEditDistance(polished_sequences[0]->reverse_complement(),
-        polished_sequences[1]->data()), 1770);
+    EXPECT_EQ(1770, calculateEditDistance(
+        polished_sequences[0]->reverse_complement(),
+        reference[0]->data()));
 }
 
 TEST_F(RaconPolishingTest, ConsensusWithQualitiesLargerWindow) {
@@ -186,13 +191,14 @@ TEST_F(RaconPolishingTest, ConsensusWithQualitiesLargerWindow) {
 
     polished_sequences[0]->create_reverse_complement();
 
-    auto parser = bioparser::createParser<bioparser::FastaParser, racon::Sequence>(
+    auto parser = bioparser::Parser<racon::Sequence>::Create<bioparser::FastaParser>(
         racon_test_data_path + "sample_reference.fasta.gz");
-    parser->parse(polished_sequences, -1);
-    EXPECT_EQ(polished_sequences.size(), 2);
+    auto reference = parser->Parse(-1);
+    EXPECT_EQ(reference.size(), 1);
 
-    EXPECT_EQ(calculateEditDistance(polished_sequences[0]->reverse_complement(),
-        polished_sequences[1]->data()), 1289);
+    EXPECT_EQ(1289, calculateEditDistance(
+        polished_sequences[0]->reverse_complement(),
+        reference[0]->data()));
 }
 
 TEST_F(RaconPolishingTest, ConsensusWithQualitiesEditDistance) {
@@ -208,13 +214,14 @@ TEST_F(RaconPolishingTest, ConsensusWithQualitiesEditDistance) {
 
     polished_sequences[0]->create_reverse_complement();
 
-    auto parser = bioparser::createParser<bioparser::FastaParser, racon::Sequence>(
+    auto parser = bioparser::Parser<racon::Sequence>::Create<bioparser::FastaParser>(
         racon_test_data_path + "sample_reference.fasta.gz");
-    parser->parse(polished_sequences, -1);
-    EXPECT_EQ(polished_sequences.size(), 2);
+    auto reference = parser->Parse(-1);
+    EXPECT_EQ(reference.size(), 1);
 
-    EXPECT_EQ(calculateEditDistance(polished_sequences[0]->reverse_complement(),
-        polished_sequences[1]->data()), 1321);
+    EXPECT_EQ(1321, calculateEditDistance(
+        polished_sequences[0]->reverse_complement(),
+        reference[0]->data()));
 }
 
 TEST_F(RaconPolishingTest, FragmentCorrectionWithQualities) {
@@ -229,7 +236,7 @@ TEST_F(RaconPolishingTest, FragmentCorrectionWithQualities) {
     EXPECT_EQ(polished_sequences.size(), 39);
 
     uint32_t total_length = 0;
-    for (const auto& it: polished_sequences) {
+    for (const auto& it : polished_sequences) {
         total_length += it->data().size();
     }
     EXPECT_EQ(total_length, 389394);
@@ -247,7 +254,7 @@ TEST_F(RaconPolishingTest, FragmentCorrectionWithQualitiesFull) {
     EXPECT_EQ(polished_sequences.size(), 236);
 
     uint32_t total_length = 0;
-    for (const auto& it: polished_sequences) {
+    for (const auto& it : polished_sequences) {
         total_length += it->data().size();
     }
     EXPECT_EQ(total_length, 1658216);
@@ -265,7 +272,7 @@ TEST_F(RaconPolishingTest, FragmentCorrectionWithoutQualitiesFull) {
     EXPECT_EQ(polished_sequences.size(), 236);
 
     uint32_t total_length = 0;
-    for (const auto& it: polished_sequences) {
+    for (const auto& it : polished_sequences) {
         total_length += it->data().size();
     }
     EXPECT_EQ(total_length, 1663982);
@@ -283,7 +290,7 @@ TEST_F(RaconPolishingTest, FragmentCorrectionWithQualitiesFullMhap) {
     EXPECT_EQ(polished_sequences.size(), 236);
 
     uint32_t total_length = 0;
-    for (const auto& it: polished_sequences) {
+    for (const auto& it : polished_sequences) {
         total_length += it->data().size();
     }
     EXPECT_EQ(total_length, 1658216);
@@ -303,13 +310,14 @@ TEST_F(RaconPolishingTest, ConsensusWithQualitiesCUDA) {
 
     polished_sequences[0]->create_reverse_complement();
 
-    auto parser = bioparser::createParser<bioparser::FastaParser, racon::Sequence>(
+    auto parser = bioparser::Parser<racon::Sequence>::Create<bioparser::FastaParser>(
         racon_test_data_path + "sample_reference.fasta.gz");
-    parser->parse(polished_sequences, -1);
-    EXPECT_EQ(polished_sequences.size(), 2);
+    auto reference = parser->Parse(-1);
+    EXPECT_EQ(reference.size(), 1);
 
-    EXPECT_EQ(calculateEditDistance(polished_sequences[0]->reverse_complement(),
-        polished_sequences[1]->data()), 1385); // CPU 1312
+    EXPECT_EQ(1385, calculateEditDistance(
+        polished_sequences[0]->reverse_complement(),
+        reference[0]->data()));  // CPU 1312
 }
 
 TEST_F(RaconPolishingTest, ConsensusWithoutQualitiesCUDA) {
@@ -325,13 +333,14 @@ TEST_F(RaconPolishingTest, ConsensusWithoutQualitiesCUDA) {
 
     polished_sequences[0]->create_reverse_complement();
 
-    auto parser = bioparser::createParser<bioparser::FastaParser, racon::Sequence>(
+    auto parser = bioparser::Parser<racon::Sequence>::Create<bioparser::FastaParser>(
         racon_test_data_path + "sample_reference.fasta.gz");
-    parser->parse(polished_sequences, -1);
-    EXPECT_EQ(polished_sequences.size(), 2);
+    auto reference = parser->Parse(-1);
+    EXPECT_EQ(reference.size(), 1);
 
-    EXPECT_EQ(calculateEditDistance(polished_sequences[0]->reverse_complement(),
-        polished_sequences[1]->data()), 1607); // CPU 1566
+    EXPECT_EQ(1607, calculateEditDistance(
+        polished_sequences[0]->reverse_complement(),
+        reference[0]->data()));  // CPU 1566
 }
 
 TEST_F(RaconPolishingTest, ConsensusWithQualitiesAndAlignmentsCUDA) {
@@ -347,13 +356,14 @@ TEST_F(RaconPolishingTest, ConsensusWithQualitiesAndAlignmentsCUDA) {
 
     polished_sequences[0]->create_reverse_complement();
 
-    auto parser = bioparser::createParser<bioparser::FastaParser, racon::Sequence>(
+    auto parser = bioparser::Parser<racon::Sequence>::Create<bioparser::FastaParser>(
         racon_test_data_path + "sample_reference.fasta.gz");
-    parser->parse(polished_sequences, -1);
-    EXPECT_EQ(polished_sequences.size(), 2);
+    auto reference = parser->Parse(-1);
+    EXPECT_EQ(reference.size(), 1);
 
-    EXPECT_EQ(calculateEditDistance(polished_sequences[0]->reverse_complement(),
-        polished_sequences[1]->data()), 1541); // CPU 1317
+    EXPECT_EQ(1541, calculateEditDistance(
+        polished_sequences[0]->reverse_complement(),
+        reference[0]->data()));  // CPU 1317
 }
 
 TEST_F(RaconPolishingTest, ConsensusWithoutQualitiesAndWithAlignmentsCUDA) {
@@ -369,13 +379,14 @@ TEST_F(RaconPolishingTest, ConsensusWithoutQualitiesAndWithAlignmentsCUDA) {
 
     polished_sequences[0]->create_reverse_complement();
 
-    auto parser = bioparser::createParser<bioparser::FastaParser, racon::Sequence>(
+    auto parser = bioparser::Parser<racon::Sequence>::Create<bioparser::FastaParser>(
         racon_test_data_path + "sample_reference.fasta.gz");
-    parser->parse(polished_sequences, -1);
-    EXPECT_EQ(polished_sequences.size(), 2);
+    auto reference = parser->Parse(-1);
+    EXPECT_EQ(reference.size(), 1);
 
-    EXPECT_EQ(calculateEditDistance(polished_sequences[0]->reverse_complement(),
-        polished_sequences[1]->data()), 1661); // CPU 1770
+    EXPECT_EQ(1661, calculateEditDistance(
+        polished_sequences[0]->reverse_complement(),
+        reference[0]->data()));  // CPU 1770
 }
 
 TEST_F(RaconPolishingTest, ConsensusWithQualitiesLargerWindowCUDA) {
@@ -391,13 +402,14 @@ TEST_F(RaconPolishingTest, ConsensusWithQualitiesLargerWindowCUDA) {
 
     polished_sequences[0]->create_reverse_complement();
 
-    auto parser = bioparser::createParser<bioparser::FastaParser, racon::Sequence>(
+    auto parser = bioparser::Parser<racon::Sequence>::Create<bioparser::FastaParser>(
         racon_test_data_path + "sample_reference.fasta.gz");
-    parser->parse(polished_sequences, -1);
-    EXPECT_EQ(polished_sequences.size(), 2);
+    auto reference = parser->Parse(-1);
+    EXPECT_EQ(reference.size(), 1);
 
-    EXPECT_EQ(calculateEditDistance(polished_sequences[0]->reverse_complement(),
-        polished_sequences[1]->data()), 4168); // CPU 1289
+    EXPECT_EQ(4168, calculateEditDistance(
+        polished_sequences[0]->reverse_complement(),
+        reference[0]->data()));  // CPU 1289
 }
 
 TEST_F(RaconPolishingTest, ConsensusWithQualitiesEditDistanceCUDA) {
@@ -413,13 +425,14 @@ TEST_F(RaconPolishingTest, ConsensusWithQualitiesEditDistanceCUDA) {
 
     polished_sequences[0]->create_reverse_complement();
 
-    auto parser = bioparser::createParser<bioparser::FastaParser, racon::Sequence>(
+    auto parser = bioparser::Parser<racon::Sequence>::Create<bioparser::FastaParser>(
         racon_test_data_path + "sample_reference.fasta.gz");
-    parser->parse(polished_sequences, -1);
-    EXPECT_EQ(polished_sequences.size(), 2);
+    auto reference = parser->Parse(-1);
+    EXPECT_EQ(reference.size(), 1);
 
-    EXPECT_EQ(calculateEditDistance(polished_sequences[0]->reverse_complement(),
-        polished_sequences[1]->data()), 1361); // CPU 1321
+    EXPECT_EQ(1361, calculateEditDistance(
+        polished_sequences[0]->reverse_complement(),
+        reference[0]->data()));  // CPU 1321
 }
 
 TEST_F(RaconPolishingTest, FragmentCorrectionWithQualitiesCUDA) {
@@ -434,10 +447,10 @@ TEST_F(RaconPolishingTest, FragmentCorrectionWithQualitiesCUDA) {
     EXPECT_EQ(polished_sequences.size(), 39);
 
     uint32_t total_length = 0;
-    for (const auto& it: polished_sequences) {
+    for (const auto& it : polished_sequences) {
         total_length += it->data().size();
     }
-    EXPECT_EQ(total_length, 385543); // CPU 389394
+    EXPECT_EQ(total_length, 385543);  // CPU 389394
 }
 
 TEST_F(RaconPolishingTest, FragmentCorrectionWithQualitiesFullCUDA) {
@@ -452,10 +465,10 @@ TEST_F(RaconPolishingTest, FragmentCorrectionWithQualitiesFullCUDA) {
     EXPECT_EQ(polished_sequences.size(), 236);
 
     uint32_t total_length = 0;
-    for (const auto& it: polished_sequences) {
+    for (const auto& it : polished_sequences) {
         total_length += it->data().size();
     }
-    EXPECT_EQ(total_length, 1655505); // CPU 1658216
+    EXPECT_EQ(total_length, 1655505);  // CPU 1658216
 }
 
 TEST_F(RaconPolishingTest, FragmentCorrectionWithoutQualitiesFullCUDA) {
@@ -470,10 +483,10 @@ TEST_F(RaconPolishingTest, FragmentCorrectionWithoutQualitiesFullCUDA) {
     EXPECT_EQ(polished_sequences.size(), 236);
 
     uint32_t total_length = 0;
-    for (const auto& it: polished_sequences) {
+    for (const auto& it : polished_sequences) {
         total_length += it->data().size();
     }
-    EXPECT_EQ(total_length, 1663732); // CPU 1663982
+    EXPECT_EQ(total_length, 1663732);  // CPU 1663982
 }
 
 TEST_F(RaconPolishingTest, FragmentCorrectionWithQualitiesFullMhapCUDA) {
@@ -488,9 +501,9 @@ TEST_F(RaconPolishingTest, FragmentCorrectionWithQualitiesFullMhapCUDA) {
     EXPECT_EQ(polished_sequences.size(), 236);
 
     uint32_t total_length = 0;
-    for (const auto& it: polished_sequences) {
+    for (const auto& it : polished_sequences) {
         total_length += it->data().size();
     }
-    EXPECT_EQ(total_length, 1655505); // CPU 1658216
+    EXPECT_EQ(total_length, 1655505);  // CPU 1658216
 }
 #endif

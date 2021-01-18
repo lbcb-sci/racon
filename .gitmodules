@@ -1,6 +1,3 @@
-[submodule "vendor/bioparser"]
-	path = vendor/bioparser
-	url = https://github.com/rvaser/bioparser
 [submodule "vendor/spoa"]
 	path = vendor/spoa
 	url = https://github.com/rvaser/spoa
@@ -10,9 +7,6 @@
 [submodule "vendor/edlib"]
 	path = vendor/edlib
 	url = https://github.com/martinsos/edlib
-[submodule "vendor/googletest"]
-	path = vendor/googletest
-	url = https://github.com/google/googletest
 [submodule "vendor/rampler"]
 	path = vendor/rampler
 	url = https://github.com/rvaser/rampler

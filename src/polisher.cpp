@@ -17,7 +17,11 @@
 #include "cuda/cudapolisher.hpp"
 #endif
 
-#include "bioparser/bioparser.hpp"
+#include "bioparser/fasta_parser.hpp"
+#include "bioparser/fastq_parser.hpp"
+#include "bioparser/mhap_parser.hpp"
+#include "bioparser/paf_parser.hpp"
+#include "bioparser/sam_parser.hpp"
 #include "thread_pool/thread_pool.hpp"
 #include "spoa/spoa.hpp"
 
@@ -83,11 +87,11 @@ std::unique_ptr<Polisher> createPolisher(const std::string& sequences_path,
     if (is_suffix(sequences_path, ".fasta") || is_suffix(sequences_path, ".fasta.gz") ||
         is_suffix(sequences_path, ".fna") || is_suffix(sequences_path, ".fna.gz") ||
         is_suffix(sequences_path, ".fa") || is_suffix(sequences_path, ".fa.gz")) {
-        sparser = bioparser::createParser<bioparser::FastaParser, Sequence>(
+        sparser = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(
             sequences_path);
     } else if (is_suffix(sequences_path, ".fastq") || is_suffix(sequences_path, ".fastq.gz") ||
         is_suffix(sequences_path, ".fq") || is_suffix(sequences_path, ".fq.gz")) {
-        sparser = bioparser::createParser<bioparser::FastqParser, Sequence>(
+        sparser = bioparser::Parser<Sequence>::Create<bioparser::FastqParser>(
             sequences_path);
     } else {
         fprintf(stderr, "[racon::createPolisher] error: "
@@ -99,13 +103,13 @@ std::unique_ptr<Polisher> createPolisher(const std::string& sequences_path,
     }
 
     if (is_suffix(overlaps_path, ".mhap") || is_suffix(overlaps_path, ".mhap.gz")) {
-        oparser = bioparser::createParser<bioparser::MhapParser, Overlap>(
+        oparser = bioparser::Parser<Overlap>::Create<bioparser::MhapParser>(
             overlaps_path);
     } else if (is_suffix(overlaps_path, ".paf") || is_suffix(overlaps_path, ".paf.gz")) {
-        oparser = bioparser::createParser<bioparser::PafParser, Overlap>(
+        oparser = bioparser::Parser<Overlap>::Create<bioparser::PafParser>(
             overlaps_path);
     } else if (is_suffix(overlaps_path, ".sam") || is_suffix(overlaps_path, ".sam.gz")) {
-        oparser = bioparser::createParser<bioparser::SamParser, Overlap>(
+        oparser = bioparser::Parser<Overlap>::Create<bioparser::SamParser>(
             overlaps_path);
     } else {
         fprintf(stderr, "[racon::createPolisher] error: "
@@ -117,11 +121,11 @@ std::unique_ptr<Polisher> createPolisher(const std::string& sequences_path,
     if (is_suffix(target_path, ".fasta") || is_suffix(target_path, ".fasta.gz") ||
         is_suffix(target_path, ".fna") || is_suffix(target_path, ".fna.gz") ||
         is_suffix(target_path, ".fa") || is_suffix(target_path, ".fa.gz")) {
-        tparser = bioparser::createParser<bioparser::FastaParser, Sequence>(
+        tparser = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(
             target_path);
     } else if (is_suffix(target_path, ".fastq") || is_suffix(target_path, ".fastq.gz") ||
         is_suffix(target_path, ".fq") || is_suffix(target_path, ".fq.gz")) {
-        tparser = bioparser::createParser<bioparser::FastqParser, Sequence>(
+        tparser = bioparser::Parser<Sequence>::Create<bioparser::FastqParser>(
             target_path);
     } else {
         fprintf(stderr, "[racon::createPolisher] error: "
@@ -152,6 +156,7 @@ std::unique_ptr<Polisher> createPolisher(const std::string& sequences_path,
     else
     {
         (void) cuda_banded_alignment;
+        (void) cudaaligner_band_width;
         return std::unique_ptr<Polisher>(new Polisher(std::move(sparser),
                     std::move(oparser), std::move(tparser), type, window_length,
                     quality_threshold, error_threshold, trim, match, mismatch, gap,
@@ -170,18 +175,13 @@ Polisher::Polisher(std::unique_ptr<bioparser::Parser<Sequence>> sparser,
         quality_threshold), error_threshold_(error_threshold), trim_(trim),
         alignment_engines_(), sequences_(), dummy_quality_(window_length, '!'),
         window_length_(window_length), windows_(),
-        thread_pool_(thread_pool::createThreadPool(num_threads)),
-        thread_to_id_(), logger_(new Logger()) {
-
-    uint32_t id = 0;
-    for (const auto& it: thread_pool_->thread_identifiers()) {
-        thread_to_id_[it] = id++;
-    }
+        thread_pool_(std::make_shared<thread_pool::ThreadPool>(num_threads)),
+        logger_(new Logger()) {
 
     for (uint32_t i = 0; i < num_threads; ++i) {
-        alignment_engines_.emplace_back(spoa::createAlignmentEngine(
+        alignment_engines_.emplace_back(spoa::AlignmentEngine::Create(
             spoa::AlignmentType::kNW, match, mismatch, gap));
-        alignment_engines_.back()->prealloc(window_length_, 5);
+        alignment_engines_.back()->Prealloc(window_length_, 5);
     }
 }
 
@@ -199,8 +199,8 @@ void Polisher::initialize() {
 
     logger_->log();
 
-    tparser_->reset();
-    tparser_->parse(sequences_, -1);
+    tparser_->Reset();
+    sequences_ = tparser_->Parse(-1);
 
     uint64_t targets_size = sequences_.size();
     if (targets_size == 0) {
@@ -225,10 +225,17 @@ void Polisher::initialize() {
 
     uint64_t sequences_size = 0, total_sequences_length = 0;
 
-    sparser_->reset();
+    sparser_->Reset();
     while (true) {
         uint64_t l = sequences_.size();
-        auto status = sparser_->parse(sequences_, kChunkSize);
+        auto reads = sparser_->Parse(kChunkSize);
+        if (reads.empty()) {
+          break;
+        }
+        sequences_.insert(
+            sequences_.end(),
+            std::make_move_iterator(reads.begin()),
+            std::make_move_iterator(reads.end()));
 
         uint64_t n = 0;
         for (uint64_t i = l; i < sequences_.size(); ++i, ++sequences_size) {
@@ -257,10 +264,6 @@ void Polisher::initialize() {
         }
 
         shrinkToFit(sequences_, l);
-
-        if (!status) {
-            break;
-        }
     }
 
     if (sequences_size == 0) {
@@ -307,12 +310,19 @@ void Polisher::initialize() {
         }
     };
 
-    oparser_->reset();
-    uint64_t l = 0;
+    oparser_->Reset();
+    uint64_t l = 0, c = 0;
     while (true) {
-        auto status = oparser_->parse(overlaps, kChunkSize);
+        auto overlaps_chunk = oparser_->Parse(kChunkSize);
+        if (overlaps_chunk.empty()) {
+          break;
+        }
+        overlaps.insert(
+            overlaps.end(),
+            std::make_move_iterator(overlaps_chunk.begin()),
+            std::make_move_iterator(overlaps_chunk.end()));
 
-        uint64_t c = l;
+        c = l;
         for (uint64_t i = l; i < overlaps.size(); ++i) {
             overlaps[i]->transmute(sequences_, name_to_id, id_to_id);
 
@@ -329,28 +339,18 @@ void Polisher::initialize() {
                 c = i;
             }
         }
-        if (!status) {
-            remove_invalid_overlaps(c, overlaps.size());
-            c = overlaps.size();
-        }
-
-        for (uint64_t i = l; i < c; ++i) {
-            if (overlaps[i] == nullptr) {
-                continue;
-            }
-
-            if (overlaps[i]->strand()) {
-                has_reverse_data[overlaps[i]->q_id()] = true;
-            } else {
-                has_data[overlaps[i]->q_id()] = true;
-            }
-        }
 
         uint64_t n = shrinkToFit(overlaps, l);
         l = c - n;
+    }
+    remove_invalid_overlaps(l, overlaps.size());
+    shrinkToFit(overlaps, l);
 
-        if (!status) {
-            break;
+    for (const auto& it : overlaps) {
+        if (it->strand()) {
+            has_reverse_data[it->q_id()] = true;
+        } else {
+            has_data[it->q_id()] = true;
         }
     }
 
@@ -368,7 +368,7 @@ void Polisher::initialize() {
 
     std::vector<std::future<void>> thread_futures;
     for (uint64_t i = 0; i < sequences_.size(); ++i) {
-        thread_futures.emplace_back(thread_pool_->submit(
+        thread_futures.emplace_back(thread_pool_->Submit(
             [&](uint64_t j) -> void {
                 sequences_[j]->transmute(has_name[j], has_data[j], has_reverse_data[j]);
             }, i));
@@ -463,7 +463,7 @@ void Polisher::find_overlap_breaking_points(std::vector<std::unique_ptr<Overlap>
 {
     std::vector<std::future<void>> thread_futures;
     for (uint64_t i = 0; i < overlaps.size(); ++i) {
-        thread_futures.emplace_back(thread_pool_->submit(
+        thread_futures.emplace_back(thread_pool_->Submit(
             [&](uint64_t j) -> void {
                 overlaps[j]->find_breaking_points(sequences_, window_length_);
             }, i));
@@ -490,14 +490,9 @@ void Polisher::polish(std::vector<std::unique_ptr<Sequence>>& dst,
 
     std::vector<std::future<bool>> thread_futures;
     for (uint64_t i = 0; i < windows_.size(); ++i) {
-        thread_futures.emplace_back(thread_pool_->submit(
+        thread_futures.emplace_back(thread_pool_->Submit(
             [&](uint64_t j) -> bool {
-                auto it = thread_to_id_.find(std::this_thread::get_id());
-                if (it == thread_to_id_.end()) {
-                    fprintf(stderr, "[racon::Polisher::polish] error: "
-                        "thread identifier not present!\n");
-                    exit(1);
-                }
+                auto it = thread_pool_->thread_ids().find(std::this_thread::get_id());  // NOLINT
                 return windows_[j]->generate_consensus(
                     alignment_engines_[it->second], trim_);
             }, i));

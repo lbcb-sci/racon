@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.2)
 project(racon)
-set(racon_version 1.4.19)
+set(racon_version 1.4.20)
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
@@ -48,7 +48,7 @@ endif()
 target_compile_definitions(racon PRIVATE RACON_VERSION="v${racon_version}")
 
 if (NOT TARGET bioparser)
-    add_subdirectory(vendor/bioparser EXCLUDE_FROM_ALL)
+    add_subdirectory(vendor/spoa/vendor/bioparser EXCLUDE_FROM_ALL)
 endif()
 if (NOT TARGET spoa)
     add_subdirectory(vendor/spoa EXCLUDE_FROM_ALL)
@@ -96,6 +96,7 @@ endif()
 install(TARGETS racon DESTINATION bin)
 
 if (racon_build_tests)
+    find_package(GTest REQUIRED)
     set(racon_test_data_path ${PROJECT_SOURCE_DIR}/test/data/)
     configure_file("${PROJECT_SOURCE_DIR}/test/racon_test_config.h.in"
         "${PROJECT_BINARY_DIR}/config/racon_test_config.h")
@@ -118,11 +119,7 @@ if (racon_build_tests)
         add_executable(racon_test ${racon_test_sources})
     endif()
 
-    if (NOT TARGET gtest_main)
-        add_subdirectory(vendor/googletest/googletest EXCLUDE_FROM_ALL)
-    endif()
-
-    target_link_libraries(racon_test bioparser spoa thread_pool edlib_static gtest_main)
+    target_link_libraries(racon_test bioparser spoa thread_pool edlib_static GTest::Main)
     if (racon_enable_cuda)
         target_link_libraries(racon_test cudapoa cudaaligner)
     endif()
