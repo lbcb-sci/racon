@@ -15,7 +15,7 @@
 #include <claraparabricks/genomeworks/utils/cudautils.hpp>
 #include <algorithm>
 
-#include "bioparser/bioparser.hpp"
+#include "bioparser/parser.hpp"
 
 namespace racon {
 
@@ -186,7 +186,7 @@ void CUDAPolisher::find_overlap_breaking_points(std::vector<std::unique_ptr<Over
         for(auto& aligner : batch_aligners_)
         {
             thread_futures.emplace_back(
-                    thread_pool_->submit(
+                    thread_pool_->Submit(
                         process_batch,
                         aligner.get()
                         )
@@ -337,7 +337,7 @@ void CUDAPolisher::polish(std::vector<std::unique_ptr<Sequence>>& dst,
         for(auto& batch_processor : batch_processors_)
         {
             thread_futures.emplace_back(
-                    thread_pool_->submit(
+                    thread_pool_->Submit(
                         process_batch,
                         batch_processor.get()
                         )
@@ -358,14 +358,9 @@ void CUDAPolisher::polish(std::vector<std::unique_ptr<Sequence>>& dst,
         for (uint64_t i = 0; i < windows_.size(); ++i) {
             if (window_consensus_status_.at(i) == false)
             {
-                thread_failed_windows.emplace_back(thread_pool_->submit(
+                thread_failed_windows.emplace_back(thread_pool_->Submit(
                             [&](uint64_t j) -> bool {
-                            auto it = thread_to_id_.find(std::this_thread::get_id());
-                            if (it == thread_to_id_.end()) {
-                            fprintf(stderr, "[racon::CUDAPolisher::polish] error: "
-                                    "thread identifier not present!\n");
-                            exit(1);
-                            }
+                            auto it = thread_pool_->thread_ids().find(std::this_thread::get_id());
                             return window_consensus_status_.at(j) = windows_[j]->generate_consensus(
                                     alignment_engines_[it->second], trim_);
                             }, i));
