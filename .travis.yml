@@ -44,7 +44,6 @@ install:
 
 script:
   - ./bin/racon --version
-  - ./bin/racon_wrapper
   - ./bin/racon_test
 
 notifications:
