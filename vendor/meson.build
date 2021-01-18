@@ -1,20 +1,22 @@
 vendor_cpp_sources = files([
   'edlib/edlib/src/edlib.cpp',
+
   'rampler/src/sampler.cpp',
-  'rampler/src/sequence.cpp',
+
   'spoa/src/alignment_engine.cpp',
+  'spoa/src/dispatcher.cpp',
   'spoa/src/graph.cpp',
-  'spoa/src/sequence.cpp',
-  'spoa/src/simd_alignment_engine.cpp',
+  'spoa/src/simd_alignment_engine_dispatch.cpp',
   'spoa/src/sisd_alignment_engine.cpp',
-  'thread_pool/src/thread_pool.cpp'
 ])
 
 vendor_include_directories = [
-                include_directories('bioparser/include'),
                 include_directories('edlib/edlib/include'),
                 include_directories('rampler/src'),
                 include_directories('spoa/include'),
+                include_directories('spoa/vendor/cereal/include'),
+                include_directories('spoa/vendor/bioparser/include'),
+                include_directories('spoa/vendor/bioparser/vendor/biosoup/include'),
                 include_directories('thread_pool/include')
                 ]
 
