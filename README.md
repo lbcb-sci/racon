@@ -20,11 +20,12 @@ A **wrapper script** is also available to enable easier usage to the end-user fo
 ## Dependencies
 1. gcc 4.8+ or clang 3.4+
 2. cmake 3.2+
+3. zlib
 
 ### CUDA Support
 1. gcc 5.0+
 2. cmake 3.10+
-4. CUDA 9.0+
+3. CUDA 9.0+
 
 ## Installation
 To install Racon run the following commands:
@@ -44,7 +45,7 @@ Optionally, you can run `sudo make install` to install racon executable to your 
 
 ***Note***: if you omitted `--recursive` from `git clone`, run `git submodule update --init --recursive` before proceeding with compilation.
 
-To build unit tests add `-Dracon_build_tests=ON` while running `cmake`. After installation, an executable named `racon_test` will be created in `build/bin`.
+To build unit tests add `-Dracon_build_tests=ON` while running `cmake` (Gtest required). After installation, an executable named `racon_test` will be created in `build/bin`.
 
 To build the wrapper script add `-Dracon_build_wrapper=ON` while running `cmake`. After installation, an executable named `racon_wrapper` (python script) will be created in `build/bin`.
 
