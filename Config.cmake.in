@@ -1,0 +1,12 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(edlib)
+find_dependency(spoa)
+find_dependency(ram)
+if (@racon_enable_cuda@)
+  find_dependency(GenomeWorks)
+endif ()
+
+include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@Targets.cmake")
+check_required_components("@PROJECT_NAME@")

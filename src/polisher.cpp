@@ -38,7 +38,7 @@ Polisher::Polisher(
       mean_overlap_len_(0),
       windows_(),
       alignment_engines_() {
-  for (std::uint32_t i = 0; i < thread_pool->num_threads(); ++i) {
+  for (std::uint32_t i = 0; i < thread_pool_->num_threads(); ++i) {
     alignment_engines_.emplace_back(spoa::AlignmentEngine::Create(
         spoa::AlignmentType::kNW,
         match,

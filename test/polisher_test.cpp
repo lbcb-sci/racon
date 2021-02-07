@@ -28,22 +28,22 @@ class RaconPolisherTest: public ::testing::Test {
       std::uint32_t cudaaligner_batches = 0) {
     biosoup::NucleicAcid::num_objects = 0;
     auto tparser = bioparser::Parser<biosoup::NucleicAcid>::Create<
-        bioparser::FastaParser>(RACON_DATA_PATH + targets_path);
+        bioparser::FastaParser>(TEST_DATA + targets_path);
     targets = tparser->Parse(-1);
 
     biosoup::NucleicAcid::num_objects = 0;
     try {
       auto sparser = bioparser::Parser<biosoup::NucleicAcid>::Create<
-          bioparser::FastaParser>(RACON_DATA_PATH + sequences_path);
+          bioparser::FastaParser>(TEST_DATA + sequences_path);
       sequences = sparser->Parse(-1);
     } catch (const std::invalid_argument& exception) {
       auto sparser = bioparser::Parser<biosoup::NucleicAcid>::Create<
-          bioparser::FastqParser>(RACON_DATA_PATH + sequences_path);
+          bioparser::FastqParser>(TEST_DATA + sequences_path);
       sequences = sparser->Parse(-1);
     }
 
     auto rparser = bioparser::Parser<biosoup::NucleicAcid>::Create<
-        bioparser::FastaParser>(RACON_DATA_PATH + std::string("sample_reference.fasta.gz"));  // NOLINT
+        bioparser::FastaParser>(TEST_DATA + std::string("sample_reference.fasta.gz"));  // NOLINT
     reference = std::move(rparser->Parse(-1).front());
 
     polisher = racon::Polisher::Create(

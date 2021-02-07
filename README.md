@@ -10,12 +10,12 @@ Racon is a c++ consensus module for raw de novo DNA assembly of long uncorrected
 
 To build racon run the following commands:
 ```bash
-git clone --recursive https://github.com/lbcb-sci/racon.git racon
-cd racon && mkdir build && cd build
-cmake -Dracon_build_executable=ON -DCMAKE_BUILD_TYPE=Release .. && make
-./bin/racon
+git clone https://github.com/lbcb-sci/racon && cd racon && mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release .. && make
 ```
-which will display the following usage:
+
+which will create racon library, executable and unit tests. Running the executable will display the following usage:
+
 ```bash
 usage: racon [options ...] <target> <sequences>
 
@@ -68,44 +68,40 @@ usage: racon [options ...] <target> <sequences>
       band width for cuda alignment (must be >=0, otherwise band width
       is determined automatically)
 ```
-If you would like to add racon as a library to your project via CMake, add the following:
+
+Running `make install` will install the executable. In order to install the library, edlib, ram and spoa (see Dependencies) need to be installed beforehand, and option `racon_install` used while configuring the build. If you choose to build with CUDA enabled, GenomeWorks needs to be installed also. Once the library is installed, a package will be copied to your system that can be searched and linked with:
+
 ```cmake
+find_package(racon)
+target_link_libraries(<target> racon::racon)
+```
+
+On the other hand, you can include racon as a submodule and add it to your project with the following:
+
 if (NOT TARGET racon)
   add_subdirectory(<path_to_submodules>/racon EXCLUDE_FROM_ALL)
 endif ()
-target_link_libraries(<your_exe> racon)
-```
+target_link_libraries(<target> racon::racon)
+
+#### Build options
+- `racon_install`: generate library install target
+- `racon_build_exe`: build executable
+- `racon_build_tests`: build unit tests
+- `racon_enable_cuda`: build with NVIDIA CUDA support
 
 #### Dependencies
-- gcc 4.8+ or clang 4.0+
-- cmake 3.9+
-- zlib (for binary only)
+- gcc 4.8+ | clang 4.0+
+- cmake 3.11+
+- (optional) CUDA 9.0+
+- (racon_exe)(racon_test) zlib 1.2.8+
 
-### CUDA Support
-Racon makes use of [NVIDIA's GenomeWorks SDK](https://github.com/clara-parabricks/GenomeWorks) for CUDA accelerated polishing and alignment.
-
-To build racon with CUDA support, add `-Dracon_enable_cuda=ON` while running `cmake`. If CUDA support is unavailable, the `cmake` step will error out.
-Note that the CUDA support flag does not produce a new binary target. Instead it augments the existing racon binary itself.
-
-***Note***: Short read polishing with CUDA is still in development!
-
-#### Dependencies
-- gcc 5.0+
-- cmake 3.10+
-- CUDA 9.0+
-
-## Unit tests
-
-To build racon unit tests run the following commands:
-```bash
-git clone --recursive https://github.com/lbcb-sci/racon.git racon
-cd racon && mkdir build && cd build
-cmake -Dracon_build_tests=ON -DCMAKE_BUILD_TYPE=Release .. && make
-./bin/racon_test
-```
-
-#### Dependencies
-- gtest
+###### Hidden
+- martinsos/edlib 1.2.6
+- lbcb-sci/ram 2.0.0
+- rvaser/spoa 4.0.8
+- (optional) clara-parabricks/GenomeWorks 0.5.3
+- (racon_exe)(racon_test) rvaser/bioparser 3.0.13
+- (racon_test) google/googletest 1.10.0
 
 ## Acknowledgment
 

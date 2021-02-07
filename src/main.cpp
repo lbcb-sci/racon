@@ -17,8 +17,6 @@ std::atomic<std::uint32_t> biosoup::NucleicAcid::num_objects{0};
 
 namespace {
 
-static const char* racon_version = RACON_VERSION;
-
 static const std::int32_t CUDAALIGNER_INPUT_CODE = 10000;
 static const std::int32_t CUDAALIGNER_BAND_WIDTH_INPUT_CODE = 10001;
 
@@ -195,7 +193,7 @@ int main(int argc, char** argv) {
         break;
 #endif
       case 't': num_threads = atoi(optarg); break;
-      case 'v': std::cout << racon_version << std::endl; return 0;
+      case 'v': std::cout << VERSION << std::endl; return 0;
       case 'h': Help(); return 0;
       default: return 1;
     }
