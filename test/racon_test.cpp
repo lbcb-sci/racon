@@ -233,13 +233,13 @@ TEST_F(RaconPolishingTest, FragmentCorrectionWithQualities) {
 
     std::vector<std::unique_ptr<racon::Sequence>> polished_sequences;
     polish(polished_sequences, true);
-    EXPECT_EQ(polished_sequences.size(), 39);
+    EXPECT_EQ(polished_sequences.size(), 40);
 
     uint32_t total_length = 0;
     for (const auto& it : polished_sequences) {
         total_length += it->data().size();
     }
-    EXPECT_EQ(total_length, 389394);
+    EXPECT_EQ(total_length, 401246);
 }
 
 TEST_F(RaconPolishingTest, FragmentCorrectionWithQualitiesFull) {

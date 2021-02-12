@@ -299,7 +299,7 @@ void Polisher::initialize() {
                     if (overlaps[j] == nullptr) {
                         continue;
                     }
-                    if (overlaps[i]->length() > overlaps[j]->length()) {
+                    if (overlaps[i]->length() >= overlaps[j]->length()) {
                         overlaps[j].reset();
                     } else {
                         overlaps[i].reset();
