@@ -15,7 +15,7 @@ class RaconWrapper:
 
     def __init__(self, sequences, overlaps, target_sequences, split, subsample,
         include_unpolished, fragment_correction, window_length, quality_threshold,
-        error_threshold, match, mismatch, gap, threads,
+        error_threshold, match, mismatch, gap, threads, cudaaligner_band_width,
         cudaaligner_batches, cudapoa_batches, cuda_banded_alignment):
 
         self.sequences = os.path.abspath(sequences)
@@ -35,9 +35,10 @@ class RaconWrapper:
         self.mismatch = mismatch
         self.gap = gap
         self.threads = threads
-        # self.cudaaligner_batches = cudaaligner_batches
-        # self.cudapoa_batches = cudapoa_batches
-        # self.cuda_banded_alignment = cuda_banded_alignment
+        self.cudaaligner_band_width = cudaaligner_band_width
+        self.cudaaligner_batches = cudaaligner_batches
+        self.cudapoa_batches = cudapoa_batches
+        self.cuda_banded_alignment = cuda_banded_alignment
         self.work_directory = os.getcwd() + '/racon_work_directory_' + str(time.time())
 
     def __enter__(self):
@@ -119,7 +120,6 @@ class RaconWrapper:
         racon_params = [RaconWrapper.__racon]
         if (self.include_unpolished == True): racon_params.append('-u')
         if (self.fragment_correction == True): racon_params.append('-f')
-        # if (self.cuda_banded_alignment == True): racon_params.append('-b')
         racon_params.extend(['-w', str(self.window_length),
             '-q', str(self.quality_threshold),
             '-e', str(self.error_threshold),
@@ -127,9 +127,14 @@ class RaconWrapper:
             '-x', str(self.mismatch),
             '-g', str(self.gap),
             '-t', str(self.threads),
-            # '--cudaaligner-batches', str(self.cudaaligner_batches),
-            # '-c', str(self.cudapoa_batches),
             self.subsampled_sequences, self.overlaps, ""])
+        if (@racon_wrapper_enable_cuda@):
+            if (self.cuda_banded_alignment == True): racon_params.append('-b')
+            racon_params.extend([
+                '--cudaaligner-band-width', str(self.cudaaligner_band_width),
+                '--cudaaligner-batches', str(self.cudaaligner_batches),
+                '-c', str(self.cudapoa_batches)])
+        print(racon_params)
 
         for target_sequences_part in self.split_target_sequences:
             eprint('[RaconWrapper::run] processing data with racon')
@@ -187,10 +192,18 @@ if __name__ == '__main__':
         mismatching bases''')
     parser.add_argument('-g', '--gap', default=-8, help='''gap penalty (must be
         negative)''')
-    parser.add_argument('-t', '--threads', default=1, help='''number of threads''')
-    parser.add_argument('--cudaaligner-batches', default=0, help='''number of batches for CUDA accelerated alignment''')
-    parser.add_argument('-c', '--cudapoa-batches', default=0, help='''number of batches for CUDA accelerated polishing''')
-    parser.add_argument('-b', '--cuda-banded-alignment', action='store_true', help='''use banding approximation for polishing on GPU. Only applicable when -c is used.''')
+    parser.add_argument('-t', '--threads', default=1, help='''number of
+        threads''')
+    parser.add_argument('--cudaaligner-band-width', default=0, help='''Band
+        width for cuda alignment. Must be >= 0. Non-zero allows user defined
+        band width, whereas 0 implies auto band width determination.''')
+    parser.add_argument('--cudaaligner-batches', default=0, help='''number of
+        batches for CUDA accelerated alignment''')
+    parser.add_argument('-c', '--cudapoa-batches', default=0, help='''number of
+        batches for CUDA accelerated polishing''')
+    parser.add_argument('-b', '--cuda-banded-alignment', action='store_true',
+        help='''use banding approximation for polishing on GPU. Only applicable
+        when -c is used.''')
 
     args = parser.parse_args()
 
@@ -198,7 +211,8 @@ if __name__ == '__main__':
         args.split, args.subsample, args.include_unpolished,
         args.fragment_correction, args.window_length, args.quality_threshold,
         args.error_threshold, args.match, args.mismatch, args.gap, args.threads,
-        args.cudaaligner_batches, args.cudapoa_batches, args.cuda_banded_alignment)
+        args.cudaaligner_band_width, args.cudaaligner_batches,
+        args.cudapoa_batches, args.cuda_banded_alignment)
 
     with racon:
         racon.run()

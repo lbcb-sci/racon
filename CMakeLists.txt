@@ -128,6 +128,11 @@ endif()
 if (racon_build_wrapper)
     set(racon_path ${PROJECT_BINARY_DIR}/bin/racon)
     set(rampler_path ${PROJECT_BINARY_DIR}/vendor/rampler/bin/rampler)
+    if (racon_enable_cuda)
+      set(racon_wrapper_enable_cuda True)
+    else ()
+      set(racon_wrapper_enable_cuda False)
+    endif ()
     configure_file(${PROJECT_SOURCE_DIR}/scripts/racon_wrapper.py
         ${PROJECT_BINARY_DIR}/${CMAKE_FILES_DIRECTORY}/racon_wrapper)
     file(COPY ${PROJECT_BINARY_DIR}/${CMAKE_FILES_DIRECTORY}/racon_wrapper
