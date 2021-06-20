@@ -396,7 +396,7 @@ void Polisher::GenerateConsensus(
     }
     futures.emplace_back(thread_pool_->Submit(
       [&] (std::uint64_t i) -> void {
-        auto it = thread_pool_->thread_ids().find(std::this_thread::get_id());
+        auto it = thread_pool_->thread_map().find(std::this_thread::get_id());
         windows_[i]->GenerateConsensus(
             sequences,
             alignment_engines_[it->second],

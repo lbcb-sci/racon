@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.11)
 
-project(racon VERSION 3.0.1
+project(racon VERSION 3.0.2
               LANGUAGES CXX
               DESCRIPTION "Racon is a c++ consensus module for raw de novo DNA assembly of long uncorrected reads.")
 
@@ -46,7 +46,7 @@ if (NOT edlib_FOUND)
   endif ()
 endif ()
 
-find_package(ram 2.0.0 QUIET)
+find_package(ram 2.1.1 QUIET)
 if (NOT ram_FOUND)
   if (racon_install)
     message(FATAL_ERROR "Missing package ram!")
@@ -55,7 +55,7 @@ if (NOT ram_FOUND)
   FetchContent_Declare(
     ram
     GIT_REPOSITORY https://github.com/lbcb-sci/ram
-    GIT_TAG 3045360)
+    GIT_TAG 2.1.1)
 
   FetchContent_GetProperties(ram)
   if (NOT ram_POPULATED)

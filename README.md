@@ -97,7 +97,7 @@ target_link_libraries(<target> racon::racon)
 
 ###### Hidden
 - martinsos/edlib 1.2.6
-- lbcb-sci/ram 2.0.0
+- lbcb-sci/ram 2.1.1
 - rvaser/spoa 4.0.8
 - (optional) clara-parabricks/GenomeWorks 0.5.3
 - (racon_exe)(racon_test) rvaser/bioparser 3.0.13
