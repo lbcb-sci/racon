@@ -30,7 +30,7 @@ namespace racon {
 constexpr uint32_t kChunkSize = 1024 * 1024 * 1024; // ~ 1GB
 
 template<class T>
-uint64_t shrinkToFit(std::vector<std::unique_ptr<T>>& src, uint64_t begin) {
+void shrinkToFit(std::vector<std::unique_ptr<T>>& src, uint64_t begin) {
 
     uint64_t i = begin;
     for (uint64_t j = begin; i < src.size(); ++i) {
@@ -49,11 +49,9 @@ uint64_t shrinkToFit(std::vector<std::unique_ptr<T>>& src, uint64_t begin) {
             src[i].swap(src[j]);
         }
     }
-    uint64_t num_deletions = src.size() - i;
     if (i < src.size()) {
         src.resize(i);
     }
-    return num_deletions;
 }
 
 std::unique_ptr<Polisher> createPolisher(const std::string& sequences_path,
@@ -311,8 +309,9 @@ void Polisher::initialize() {
     };
 
     oparser_->Reset();
-    uint64_t l = 0, c = 0;
+    uint64_t c = 0;
     while (true) {
+        uint64_t l = overlaps.size();
         auto overlaps_chunk = oparser_->Parse(kChunkSize);
         if (overlaps_chunk.empty()) {
           break;
@@ -322,7 +321,6 @@ void Polisher::initialize() {
             std::make_move_iterator(overlaps_chunk.begin()),
             std::make_move_iterator(overlaps_chunk.end()));
 
-        c = l;
         for (uint64_t i = l; i < overlaps.size(); ++i) {
             overlaps[i]->transmute(sequences_, name_to_id, id_to_id);
 
@@ -340,11 +338,17 @@ void Polisher::initialize() {
             }
         }
 
-        uint64_t n = shrinkToFit(overlaps, l);
-        l = c - n;
+        uint64_t n = 0;
+        for (uint64_t i = l; i < c; ++i) {
+          if (overlaps[i] == nullptr) {
+            ++n;
+          }
+        }
+        c -= n;
+        shrinkToFit(overlaps, l);
     }
-    remove_invalid_overlaps(l, overlaps.size());
-    shrinkToFit(overlaps, l);
+    remove_invalid_overlaps(c, overlaps.size());
+    shrinkToFit(overlaps, c);
 
     for (const auto& it : overlaps) {
         if (it->strand()) {
