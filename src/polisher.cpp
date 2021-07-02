@@ -311,7 +311,6 @@ void Polisher::initialize() {
     oparser_->Reset();
     uint64_t c = 0;
     while (true) {
-        uint64_t l = overlaps.size();
         auto overlaps_chunk = oparser_->Parse(kChunkSize);
         if (overlaps_chunk.empty()) {
           break;
@@ -321,6 +320,7 @@ void Polisher::initialize() {
             std::make_move_iterator(overlaps_chunk.begin()),
             std::make_move_iterator(overlaps_chunk.end()));
 
+        uint64_t l = c;
         for (uint64_t i = l; i < overlaps.size(); ++i) {
             overlaps[i]->transmute(sequences_, name_to_id, id_to_id);
 
