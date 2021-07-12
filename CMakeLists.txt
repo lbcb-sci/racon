@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.11)
 
-project(racon VERSION 3.0.2
+project(racon VERSION 3.0.3
               LANGUAGES CXX
               DESCRIPTION "Racon is a c++ consensus module for raw de novo DNA assembly of long uncorrected reads.")
 
