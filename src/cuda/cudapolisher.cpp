@@ -360,7 +360,7 @@ void CUDAPolisher::polish(std::vector<std::unique_ptr<Sequence>>& dst,
             {
                 thread_failed_windows.emplace_back(thread_pool_->Submit(
                             [&](uint64_t j) -> bool {
-                            auto it = thread_pool_->thread_ids().find(std::this_thread::get_id());
+                            auto it = thread_pool_->thread_map().find(std::this_thread::get_id());
                             return window_consensus_status_.at(j) = windows_[j]->generate_consensus(
                                     alignment_engines_[it->second], trim_);
                             }, i));

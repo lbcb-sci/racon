@@ -187,6 +187,9 @@ if (racon_enable_cuda)
 
   cuda_add_library(racon
     ${racon_sources})
+
+  target_compile_definitions(racon
+    PRIVATE CUDA_ENABLED)
 else ()
   add_library(racon
     ${racon_sources})
@@ -233,6 +236,11 @@ if (racon_build_tests)
 
   target_compile_definitions(racon_test
     PRIVATE TEST_DATA="${PROJECT_SOURCE_DIR}/test/data/")
+
+  if (racon_enable_cuda)
+    target_compile_definitions(racon_test
+      PRIVATE CUDA_ENABLED)
+  endif ()
 endif()
 
 if (racon_build_wrapper)
