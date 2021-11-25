@@ -31,21 +31,13 @@ A **wrapper script** is also available to enable easier usage to the end-user fo
 To install Racon run the following commands:
 
 ```bash
-git clone --recursive https://github.com/lbcb-sci/racon.git racon
-cd racon
-mkdir build
-cd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make
+git clone https://github.com/lbcb-sci/racon && cd racon && mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release .. && make
 ```
 
-After successful installation, an executable named `racon` will appear in `build/bin`.
+After successful installation, an executable named `racon` will appear in `build/bin` (alongside unit tests `racon_test`).
 
 Optionally, you can run `sudo make install` to install racon executable to your machine.
-
-***Note***: if you omitted `--recursive` from `git clone`, run `git submodule update --init --recursive` before proceeding with compilation.
-
-To build unit tests add `-Dracon_build_tests=ON` while running `cmake` (Gtest required). After installation, an executable named `racon_test` will be created in `build/bin`.
 
 To build the wrapper script add `-Dracon_build_wrapper=ON` while running `cmake`. After installation, an executable named `racon_wrapper` (python script) will be created in `build/bin`.
 
