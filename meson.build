@@ -1,13 +1,13 @@
 project(
   'Racon',
   'cpp',
-  version : '1.4.13',
+  version : '1.5.0',
   default_options : [
     'buildtype=release',
     'warning_level=3',
     'cpp_std=c++11'],
   license : 'MIT',
-  meson_version : '>= 0.48')
+  meson_version : '>= 0.50.0')
 
 cpp = meson.get_compiler('cpp')
 
@@ -19,6 +19,7 @@ opt_compile_with_tests = get_option('tests')
 
 racon_warning_flags = []
 racon_cpp_flags = []
+racon_macros = ['-DVERSION="' + meson.project_version() + '"']
 
 ################
 # Dependencies #
@@ -101,7 +102,7 @@ racon_dep = declare_dependency(
     link_with: [racon_lib, vendor_lib],
     dependencies: [racon_thread_dep, racon_zlib_dep],
     version: meson.project_version(),
-    compile_args: racon_warning_flags + racon_cpp_flags)
+    compile_args: racon_warning_flags + racon_cpp_flags + racon_macros)
 
 if not meson.is_subproject()
   racon_bin = executable(
@@ -111,12 +112,13 @@ if not meson.is_subproject()
     dependencies : [racon_thread_dep, racon_zlib_dep],
     include_directories : vendor_include_directories + racon_include_directories,
     link_with : [racon_lib],
-    cpp_args : [racon_warning_flags, racon_cpp_flags])
+    cpp_args : [racon_warning_flags, racon_cpp_flags, racon_macros])
 
   ######################
   # Tests              #
   ######################
   if opt_compile_with_tests
+      racon_test_macros = ['-DTEST_DATA="' + meson.source_root() + '/test/data/"']
       if gtest_dep.found()
           tests_bin = executable(
               'racon_test',
@@ -124,7 +126,7 @@ if not meson.is_subproject()
               dependencies : [racon_thread_dep, racon_zlib_dep, gtest_dep],
               include_directories : racon_include_directories + vendor_include_directories + racon_test_include_directories,
               link_with : [racon_lib, vendor_lib],
-              cpp_args : [racon_warning_flags, racon_cpp_flags, racon_test_extra_flags])
+              cpp_args : [racon_warning_flags, racon_cpp_flags, racon_macros, racon_test_extra_flags, racon_test_macros])
       endif
   endif
 
