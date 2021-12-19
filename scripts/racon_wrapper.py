@@ -126,14 +126,14 @@ class RaconWrapper:
             '-m', str(self.match),
             '-x', str(self.mismatch),
             '-g', str(self.gap),
-            '-t', str(self.threads),
-            self.subsampled_sequences, self.overlaps, ""])
+            '-t', str(self.threads)])
         if (@racon_wrapper_enable_cuda@):
             if (self.cuda_banded_alignment == True): racon_params.append('-b')
             racon_params.extend([
                 '--cudaaligner-band-width', str(self.cudaaligner_band_width),
                 '--cudaaligner-batches', str(self.cudaaligner_batches),
                 '-c', str(self.cudapoa_batches)])
+        racon_params.extend([self.subsampled_sequences, self.overlaps, ""])
 
         for target_sequences_part in self.split_target_sequences:
             eprint('[RaconWrapper::run] processing data with racon')
