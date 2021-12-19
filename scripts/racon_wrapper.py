@@ -134,7 +134,6 @@ class RaconWrapper:
                 '--cudaaligner-band-width', str(self.cudaaligner_band_width),
                 '--cudaaligner-batches', str(self.cudaaligner_batches),
                 '-c', str(self.cudapoa_batches)])
-        print(racon_params)
 
         for target_sequences_part in self.split_target_sequences:
             eprint('[RaconWrapper::run] processing data with racon')

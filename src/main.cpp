@@ -12,11 +12,6 @@
 #include "cuda/cudapolisher.hpp"
 #endif
 
-#ifndef RACON_VERSION
-#error "Undefined version for Racon. Please pass version using -DRACON_VERSION macro."
-#endif
-
-static const char* version = RACON_VERSION;
 static const int32_t CUDAALIGNER_INPUT_CODE = 10000;
 static const int32_t CUDAALIGNER_BAND_WIDTH_INPUT_CODE = 10001;
 
@@ -105,7 +100,7 @@ int main(int argc, char** argv) {
                 num_threads = atoi(optarg);
                 break;
             case 'v':
-                printf("%s\n", version);
+                printf("%s\n", VERSION);
                 exit(0);
             case 'h':
                 help();

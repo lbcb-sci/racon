@@ -4,9 +4,9 @@ vendor_cpp_sources = files([
   'rampler/src/sampler.cpp',
 
   'spoa/src/alignment_engine.cpp',
-  'spoa/src/dispatcher.cpp',
   'spoa/src/graph.cpp',
   'spoa/src/simd_alignment_engine_dispatch.cpp',
+  'spoa/src/simd_alignment_engine_dispatcher.cpp',
   'spoa/src/sisd_alignment_engine.cpp',
 ])
 

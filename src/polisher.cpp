@@ -496,7 +496,7 @@ void Polisher::polish(std::vector<std::unique_ptr<Sequence>>& dst,
     for (uint64_t i = 0; i < windows_.size(); ++i) {
         thread_futures.emplace_back(thread_pool_->Submit(
             [&](uint64_t j) -> bool {
-                auto it = thread_pool_->thread_ids().find(std::this_thread::get_id());  // NOLINT
+                auto it = thread_pool_->thread_map().find(std::this_thread::get_id());  // NOLINT
                 return windows_[j]->generate_consensus(
                     alignment_engines_[it->second], trim_);
             }, i));
