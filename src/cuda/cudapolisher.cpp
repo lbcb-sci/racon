@@ -104,6 +104,7 @@ void CUDAPolisher::find_overlap_breaking_points(std::vector<std::unique_ptr<Over
 
         // Variables for keeping track of logger progress bar.
         uint32_t logger_step = overlaps.size() / RACON_LOGGER_BIN_SIZE;
+        logger_step = std::max(logger_step, (uint32_t)1);
         int32_t log_bar_idx = 0, log_bar_idx_prev = -1;
         uint32_t window_idx = 0;
         std::mutex mutex_log_bar_idx;
@@ -130,7 +131,7 @@ void CUDAPolisher::find_overlap_breaking_points(std::vector<std::unique_ptr<Over
                         if (log_bar_idx == log_bar_idx_prev) {
                             continue;
                         }
-                        else if (logger_step != 0 && log_bar_idx < static_cast<int32_t>(RACON_LOGGER_BIN_SIZE))
+                        else if (log_bar_idx < static_cast<int32_t>(RACON_LOGGER_BIN_SIZE))
                         {
                             logger_->bar("[racon::CUDAPolisher::initialize] aligning overlaps");
                             log_bar_idx_prev = log_bar_idx;
@@ -277,6 +278,7 @@ void CUDAPolisher::polish(std::vector<std::unique_ptr<Sequence>>& dst,
 
         // Variables for keeping track of logger progress bar.
         uint32_t logger_step = windows_.size() / RACON_LOGGER_BIN_SIZE;
+        logger_step = std::max(logger_step, (uint32_t)1);
         int32_t log_bar_idx = 0, log_bar_idx_prev = -1;
         uint32_t window_idx = 0;
         std::mutex mutex_log_bar_idx;
@@ -315,7 +317,7 @@ void CUDAPolisher::polish(std::vector<std::unique_ptr<Sequence>>& dst,
                         if (log_bar_idx == log_bar_idx_prev) {
                             continue;
                         }
-                        else if (logger_step != 0 && log_bar_idx < static_cast<int32_t>(RACON_LOGGER_BIN_SIZE))
+                        else if (log_bar_idx < static_cast<int32_t>(RACON_LOGGER_BIN_SIZE))
                         {
                             while(log_bar_idx_prev <= log_bar_idx)
                             {
