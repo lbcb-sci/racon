@@ -158,7 +158,7 @@ if (racon_enable_cuda)
     FetchContent_Declare(
       genomeworks
       GIT_REPOSITORY https://github.com/clara-parabricks/GenomeWorks
-      GIT_TAG v0.5.3)
+      GIT_TAG v2021.02.2)
 
     FetchContent_GetProperties(genomeworks)
     if (NOT genomeworks_POPULATED)
