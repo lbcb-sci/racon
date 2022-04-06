@@ -157,7 +157,7 @@ if (racon_enable_cuda)
   else ()
     FetchContent_Declare(
       genomeworks
-      GIT_REPOSITORY https://github.com/cznruss/GenomeWorks
+      GIT_REPOSITORY https://github.com/znruss/GenomeWorks
       GIT_TAG 4bdeb122019636aba7ff4d2a75f5ade8b2a1c6cc)
 
     FetchContent_GetProperties(genomeworks)
