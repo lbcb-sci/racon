@@ -313,7 +313,7 @@ TEST_F(RaconPolishingTest, ConsensusWithQualitiesCUDA) {
     auto reference = parser->Parse(-1);
     EXPECT_EQ(reference.size(), 1);
 
-    EXPECT_EQ(1385, calculateEditDistance(
+    EXPECT_EQ(1390, calculateEditDistance(
         polished_sequences[0]->reverse_complement(),
         reference[0]->data()));  // CPU 1312
 }
@@ -336,7 +336,7 @@ TEST_F(RaconPolishingTest, ConsensusWithoutQualitiesCUDA) {
     auto reference = parser->Parse(-1);
     EXPECT_EQ(reference.size(), 1);
 
-    EXPECT_EQ(1607, calculateEditDistance(
+    EXPECT_EQ(1599, calculateEditDistance(
         polished_sequences[0]->reverse_complement(),
         reference[0]->data()));  // CPU 1566
 }
@@ -359,7 +359,7 @@ TEST_F(RaconPolishingTest, ConsensusWithQualitiesAndAlignmentsCUDA) {
     auto reference = parser->Parse(-1);
     EXPECT_EQ(reference.size(), 1);
 
-    EXPECT_EQ(1541, calculateEditDistance(
+    EXPECT_EQ(1599, calculateEditDistance(
         polished_sequences[0]->reverse_complement(),
         reference[0]->data()));  // CPU 1317
 }
@@ -382,7 +382,7 @@ TEST_F(RaconPolishingTest, ConsensusWithoutQualitiesAndWithAlignmentsCUDA) {
     auto reference = parser->Parse(-1);
     EXPECT_EQ(reference.size(), 1);
 
-    EXPECT_EQ(1661, calculateEditDistance(
+    EXPECT_EQ(1808, calculateEditDistance(
         polished_sequences[0]->reverse_complement(),
         reference[0]->data()));  // CPU 1770
 }
@@ -405,7 +405,7 @@ TEST_F(RaconPolishingTest, ConsensusWithQualitiesLargerWindowCUDA) {
     auto reference = parser->Parse(-1);
     EXPECT_EQ(reference.size(), 1);
 
-    EXPECT_EQ(4168, calculateEditDistance(
+    EXPECT_EQ(4402, calculateEditDistance(
         polished_sequences[0]->reverse_complement(),
         reference[0]->data()));  // CPU 1289
 }
@@ -428,7 +428,7 @@ TEST_F(RaconPolishingTest, ConsensusWithQualitiesEditDistanceCUDA) {
     auto reference = parser->Parse(-1);
     EXPECT_EQ(reference.size(), 1);
 
-    EXPECT_EQ(1361, calculateEditDistance(
+    EXPECT_EQ(1389, calculateEditDistance(
         polished_sequences[0]->reverse_complement(),
         reference[0]->data()));  // CPU 1321
 }
