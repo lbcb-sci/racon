@@ -5,10 +5,11 @@
  */
 
 #include <algorithm>
+#include <iostream>
 
 #include "sequence.hpp"
 #include "overlap.hpp"
-#include "edlib.h"
+#include "bindings/cpp/WFAligner.hpp"
 
 namespace racon {
 
@@ -202,25 +203,26 @@ void Overlap::find_breaking_points(const std::vector<std::unique_ptr<Sequence>>&
     std::string().swap(cigar_);
 }
 
-void Overlap::align_overlaps(const char* q, uint32_t q_length, const char* t, uint32_t t_length)
+static wfa::WFAlignerGapAffine &get_aligner() {
+  thread_local std::unique_ptr<wfa::WFAlignerGapAffine> aligner;
+  if (!aligner) {
+    aligner = std::make_unique<wfa::WFAlignerGapAffine>(
+        5, 4, 2, wfa::WFAligner::Alignment, wfa::WFAligner::MemoryUltralow);
+
+    aligner->setHeuristicWFadaptive(10, 50, 1);
+    aligner->setHeuristicBandedAdaptive(-50, +50, 1);
+    aligner->setHeuristicXDrop(100, 100);
+    aligner->setHeuristicZDrop(100, 100);
+  }
+
+  return *aligner;
+}
+
+void Overlap::align_overlaps(const char *q, uint32_t q_length, const char *t, uint32_t t_length) 
 {
-    // align overlaps with edlib
-    EdlibAlignResult result = edlibAlign(q, q_length, t, t_length,
-            edlibNewAlignConfig(-1, EDLIB_MODE_NW, EDLIB_TASK_PATH,
-                nullptr, 0));
-
-    if (result.status == EDLIB_STATUS_OK) {
-        char* cigar = edlibAlignmentToCigar(result.alignment,
-                result.alignmentLength, EDLIB_CIGAR_STANDARD);
-        cigar_ = cigar;
-        free(cigar);
-    } else {
-        fprintf(stderr, "[racon::Overlap::find_breaking_points] error: "
-                "edlib unable to align pair (%zu x %zu)!\n", q_id_, t_id_);
-        exit(1);
-    }
-
-    edlibFreeAlignResult(result);
+  auto& aligner = get_aligner();
+  aligner.alignEnd2End(t, t_length, q, q_length);
+  cigar_ = aligner.getCIGAR(true);
 }
 
 void Overlap::find_breaking_points_from_cigar(uint32_t window_length)

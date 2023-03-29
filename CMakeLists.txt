@@ -5,7 +5,7 @@ project(racon VERSION 1.5.0
               DESCRIPTION "Racon is a consensus module for de novo genome assembly.")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic")
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -87,6 +87,22 @@ if (NOT thread_pool_FOUND)
     add_subdirectory(
       ${thread_pool_SOURCE_DIR}
       ${thread_pool_BINARY_DIR}
+      EXCLUDE_FROM_ALL)
+  endif ()
+endif ()
+
+find_package(wfa2 QUIET)
+if (NOT wfa2_FOUND)
+  FetchContent_Declare(
+    wfa2
+    GIT_REPOSITORY https://github.com/smarco/WFA2-lib
+    GIT_TAG ed412fe308d740718e1b22a0a44b5750bc244649)
+
+  if (NOT wfa2_POPULATED)
+    FetchContent_Populate(wfa2)
+    add_subdirectory(
+      ${wfa2_SOURCE_DIR}
+      ${wfa2_BINARY_DIR}
       EXCLUDE_FROM_ALL)
   endif ()
 endif ()
@@ -199,7 +215,8 @@ target_link_libraries(racon
   bioparser::bioparser
   edlib::edlib
   spoa::spoa
-  thread_pool::thread_pool)
+  thread_pool::thread_pool
+  wfa2cpp)
 
 if (racon_enable_cuda)
   target_link_libraries(racon
