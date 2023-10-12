@@ -1,11 +1,11 @@
-cmake_minimum_required(VERSION 3.11)
+cmake_minimum_required(VERSION 3.12)
 
 project(racon VERSION 1.5.0
               LANGUAGES CXX
               DESCRIPTION "Racon is a consensus module for de novo genome assembly.")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic")
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -57,12 +57,12 @@ if (NOT edlib_FOUND)
   endif ()
 endif ()
 
-find_package(spoa 4.0.8 QUIET)
+find_package(spoa 4.1.2 QUIET)
 if (NOT spoa_FOUND)
   FetchContent_Declare(
     spoa
     GIT_REPOSITORY https://github.com/rvaser/spoa
-    GIT_TAG 4.0.8)
+    GIT_TAG 4.1.2)
 
   FetchContent_GetProperties(spoa)
   if (NOT spoa_POPULATED)

@@ -18,13 +18,13 @@ Racon can also be used as a read error-correction tool. In this scenario, the MH
 A **wrapper script** is also available to enable easier usage to the end-user for large datasets. It has the same interface as racon but adds two additional features from the outside. Sequences can be **subsampled** to decrease the total execution time (accuracy might be lower) while target sequences can be **split** into smaller chunks and run sequentially to decrease memory consumption. Both features can be run at the same time as well.
 
 ## Dependencies
-1. gcc 4.8+ or clang 3.4+
-2. cmake 3.2+
+1. gcc 7+ or clang 7+
+2. cmake 3.12+
 3. zlib
 
 ### CUDA Support
-1. gcc 5.0+
-2. cmake 3.10+
+1. gcc 7+
+2. cmake 3.12+
 3. CUDA 9.0+
 
 ## Installation
