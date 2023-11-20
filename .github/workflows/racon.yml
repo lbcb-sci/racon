@@ -10,40 +10,36 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         image:
           - gcc:7
           - silkeh/clang:7
         build_type:
-          - Debug, Release
+          - Debug
+          - Release
     container:
       image: ${{ matrix.image }}
       options: --user root
 
     steps:
       - uses: actions/checkout@v4
+
       - name: Install build dependencies
         run: |
           chmod +x ci/install_deps.sh
           ./ci/install_deps.sh
 
-      - name: Create build directory
-        run: cmake -E make_directory build
 
       - name: Generate build files
-        working-directory: build
         run: >
-          cmake ..
-          -G Ninja
+          cmake -B ./build -G Ninja
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
 
       - name: Build
-        working-directory: build
-        run: cmake --build .
+        run: cmake --build ./build
 
       - name: Test
-        working-directory: build
         run: |
-          bin/racon --version
-          bin/racon_test
+          ./build/bin/racon --version
+          ./build/bin/racon_test
