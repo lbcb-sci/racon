@@ -62,7 +62,7 @@ if (NOT spoa_FOUND)
   FetchContent_Declare(
     spoa
     GIT_REPOSITORY https://github.com/rvaser/spoa
-    GIT_TAG 4.1.2)
+    GIT_TAG fd3a5c58c1acbdf649ec956acb7dca5f24638f72)
 
   FetchContent_GetProperties(spoa)
   if (NOT spoa_POPULATED)
