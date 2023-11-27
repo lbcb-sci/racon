@@ -95,6 +95,9 @@ Usage of `racon` is as following:
             maximum allowed error rate used for filtering overlaps
         --no-trimming
             disables consensus trimming at window ends
+        --min-coverage <int>
+            default: -1
+            minimal consensus coverage
         -m, --match <int>
             default: 3
             score for matching bases

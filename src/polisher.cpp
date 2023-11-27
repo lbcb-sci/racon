@@ -58,8 +58,9 @@ std::unique_ptr<Polisher> createPolisher(const std::string& sequences_path,
     const std::string& overlaps_path, const std::string& target_path,
     PolisherType type, uint32_t window_length, double quality_threshold,
     double error_threshold, bool trim, int8_t match, int8_t mismatch, int8_t gap,
-    uint32_t num_threads, uint32_t cudapoa_batches, bool cuda_banded_alignment,
-    uint32_t cudaaligner_batches, uint32_t cudaaligner_band_width) {
+    uint32_t num_threads, int32_t min_coverage, uint32_t cudapoa_batches,
+    bool cuda_banded_alignment, uint32_t cudaaligner_batches,
+    uint32_t cudaaligner_band_width) {
 
     if (type != PolisherType::kC && type != PolisherType::kF) {
         fprintf(stderr, "[racon::createPolisher] error: invalid polisher type!\n");
@@ -158,7 +159,7 @@ std::unique_ptr<Polisher> createPolisher(const std::string& sequences_path,
         return std::unique_ptr<Polisher>(new Polisher(std::move(sparser),
                     std::move(oparser), std::move(tparser), type, window_length,
                     quality_threshold, error_threshold, trim, match, mismatch, gap,
-                    num_threads));
+                    num_threads, min_coverage));
     }
 }
 
@@ -167,13 +168,13 @@ Polisher::Polisher(std::unique_ptr<bioparser::Parser<Sequence>> sparser,
     std::unique_ptr<bioparser::Parser<Sequence>> tparser,
     PolisherType type, uint32_t window_length, double quality_threshold,
     double error_threshold, bool trim, int8_t match, int8_t mismatch, int8_t gap,
-    uint32_t num_threads)
+    uint32_t num_threads, int32_t min_coverage)
         : sparser_(std::move(sparser)), oparser_(std::move(oparser)),
         tparser_(std::move(tparser)), type_(type), quality_threshold_(
         quality_threshold), error_threshold_(error_threshold), trim_(trim),
-        alignment_engines_(), sequences_(), dummy_quality_(window_length, '!'),
-        window_length_(window_length), windows_(),
-        thread_pool_(std::make_shared<thread_pool::ThreadPool>(num_threads)),
+        min_coverage_(min_coverage), alignment_engines_(), sequences_(),
+        dummy_quality_(window_length, '!'), window_length_(window_length),
+        windows_(), thread_pool_(std::make_shared<thread_pool::ThreadPool>(num_threads)),
         logger_(new Logger()) {
 
     for (uint32_t i = 0; i < num_threads; ++i) {
@@ -498,7 +499,7 @@ void Polisher::polish(std::vector<std::unique_ptr<Sequence>>& dst,
             [&](uint64_t j) -> bool {
                 auto it = thread_pool_->thread_map().find(std::this_thread::get_id());  // NOLINT
                 return windows_[j]->generate_consensus(
-                    alignment_engines_[it->second], trim_);
+                    alignment_engines_[it->second], trim_, min_coverage_);
             }, i));
     }
 

@@ -44,7 +44,7 @@ std::unique_ptr<Polisher> createPolisher(const std::string& sequences_path,
     const std::string& overlaps_path, const std::string& target_path,
     PolisherType type, uint32_t window_length, double quality_threshold,
     double error_threshold, bool trim, int8_t match, int8_t mismatch, int8_t gap,
-    uint32_t num_threads, uint32_t cuda_batches = 0,
+    uint32_t num_threads, int32_t min_coverage = -1, uint32_t cuda_batches = 0,
     bool cuda_banded_alignment = false, uint32_t cudaaligner_batches = 0,
     uint32_t cudaaligner_band_width = 0);
 
@@ -61,8 +61,9 @@ public:
         const std::string& overlaps_path, const std::string& target_path,
         PolisherType type, uint32_t window_length, double quality_threshold,
         double error_threshold, bool trim, int8_t match, int8_t mismatch, int8_t gap,
-        uint32_t num_threads, uint32_t cuda_batches, bool cuda_banded_alignment,
-        uint32_t cudaaligner_batches, uint32_t cudaaligner_band_width);
+        uint32_t num_threads, int32_t min_coverage, uint32_t cuda_batches,
+        bool cuda_banded_alignment, uint32_t cudaaligner_batches,
+        uint32_t cudaaligner_band_width);
 
 protected:
     Polisher(std::unique_ptr<bioparser::Parser<Sequence>> sparser,
@@ -70,7 +71,7 @@ protected:
         std::unique_ptr<bioparser::Parser<Sequence>> tparser,
         PolisherType type, uint32_t window_length, double quality_threshold,
         double error_threshold, bool trim, int8_t match, int8_t mismatch, int8_t gap,
-        uint32_t num_threads);
+        uint32_t num_threads, int32_t min_coverage);
     Polisher(const Polisher&) = delete;
     const Polisher& operator=(const Polisher&) = delete;
     virtual void find_overlap_breaking_points(std::vector<std::unique_ptr<Overlap>>& overlaps);
@@ -83,6 +84,7 @@ protected:
     double quality_threshold_;
     double error_threshold_;
     bool trim_;
+    int32_t min_coverage_;
     std::vector<std::shared_ptr<spoa::AlignmentEngine>> alignment_engines_;
 
     std::vector<std::unique_ptr<Sequence>> sequences_;
