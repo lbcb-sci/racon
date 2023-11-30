@@ -57,7 +57,7 @@ if (NOT edlib_FOUND)
   endif ()
 endif ()
 
-find_package(spoa 4.1.2 QUIET)
+find_package(spoa 4.1.4 QUIET)
 if (NOT spoa_FOUND)
   FetchContent_Declare(
     spoa
