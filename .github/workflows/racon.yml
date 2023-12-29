@@ -6,48 +6,40 @@ on:
     branches:
       - master
 
-env:
-  BUILD_TYPE: Release
-
 jobs:
   test:
+    runs-on: ubuntu-latest
     strategy:
+      fail-fast: true
       matrix:
-        compiler:
-          - g++
-          - g++-4.8
-          - clang++
-          - clang++-4.0
-
-    runs-on: ubuntu-18.04
+        image:
+          - gcc:7
+          - silkeh/clang:7
+        build_type:
+          - Debug
+          - Release
+    container:
+      image: ${{ matrix.image }}
+      options: --user root
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
-      - if: ${{ matrix.compiler == 'g++-4.8' }}
-        name: Setup GCC
-        uses: egor-tensin/setup-gcc@v1
-        with:
-          version: "4.8"
-          platform: x64
+      - name: Install build dependencies
+        run: |
+          chmod +x ci/install_deps.sh
+          ./ci/install_deps.sh
 
-      - if: ${{ matrix.compiler == 'clang++-4.0' }}
-        name: Setup Clang
-        uses: egor-tensin/setup-clang@v1
-        with:
-          version: "4.0"
-          platform: x64
 
-      - name: Configure CMake
-        run: cmake -B ${{ github.workspace }}/build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
-        env:
-          CXX: ${{ matrix.compiler }}
+      - name: Generate build files
+        run: >
+          cmake -B ./build -G Ninja
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
 
       - name: Build
-        run: cmake --build ${{ github.workspace }}/build --config ${{ env.BUILD_TYPE }}
+        run: cmake --build ./build
 
       - name: Test
-        working-directory: ${{ github.workspace }}/build
         run: |
-          bin/racon --version
-          bin/racon_test
+          ./build/bin/racon --version
+          ./build/bin/racon_test

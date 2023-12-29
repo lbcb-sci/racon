@@ -45,7 +45,7 @@ public:
     }
 
     bool generate_consensus(std::shared_ptr<spoa::AlignmentEngine> alignment_engine,
-        bool trim);
+        bool trim, int32_t min_coverage);
 
     void add_layer(const char* sequence, uint32_t sequence_length,
         const char* quality, uint32_t quality_length, uint32_t begin,

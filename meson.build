@@ -5,7 +5,7 @@ project(
   default_options : [
     'buildtype=release',
     'warning_level=3',
-    'cpp_std=c++11'],
+    'cpp_std=c++17'],
   license : 'MIT',
   meson_version : '>= 0.50.0')
 
