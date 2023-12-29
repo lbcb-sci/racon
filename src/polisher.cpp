@@ -57,10 +57,10 @@ void shrinkToFit(std::vector<std::unique_ptr<T>>& src, uint64_t begin) {
 std::unique_ptr<Polisher> createPolisher(const std::string& sequences_path,
     const std::string& overlaps_path, const std::string& target_path,
     PolisherType type, uint32_t window_length, double quality_threshold,
-    double error_threshold, bool trim, int8_t match, int8_t mismatch, int8_t gap,
-    uint32_t num_threads, int32_t min_coverage, uint32_t cudapoa_batches,
-    bool cuda_banded_alignment, uint32_t cudaaligner_batches,
-    uint32_t cudaaligner_band_width) {
+    double error_threshold, bool trim, int8_t match, int8_t mismatch,
+    int8_t gap, uint32_t num_threads, int32_t min_coverage,
+    uint32_t cudapoa_batches, bool cuda_banded_alignment,
+    uint32_t cudaaligner_batches, uint32_t cudaaligner_band_width) {
 
     if (type != PolisherType::kC && type != PolisherType::kF) {
         fprintf(stderr, "[racon::createPolisher] error: invalid polisher type!\n");

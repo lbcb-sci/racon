@@ -152,7 +152,7 @@ int main(int argc, char** argv) {
     auto polisher = racon::createPolisher(input_paths[0], input_paths[1],
         input_paths[2], type == 0 ? racon::PolisherType::kC :
         racon::PolisherType::kF, window_length, quality_threshold,
-        error_threshold, trim, min_coverage, match, mismatch, gap, num_threads,
+        error_threshold, trim, match, mismatch, gap, num_threads, min_coverage,
         cudapoa_batches, cuda_banded_alignment, cudaaligner_batches,
         cudaaligner_band_width);
 
